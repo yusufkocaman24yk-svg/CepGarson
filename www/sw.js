@@ -1,5 +1,5 @@
 // CepGarson servis çalışanı: uygulama kabuğunu ve kütüphaneleri önbelleğe alır.
-const CACHE = 'cepgarson-v1';
+const CACHE = 'cepgarson-v2';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 const CDN = ['cdn.tailwindcss.com', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net'];
 
@@ -21,18 +21,25 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
 
   if (url.origin === self.location.origin) {
+    if (/\.apk$/i.test(url.pathname)) return;     // APK indirmesine karışma (önbelleğe alma)
     if (req.mode === 'navigate') {
-      // Sayfa: önce ağ (güncel sürüm), internet yoksa önbellek
+      // Sayfa: önce ağ (güncel sürüm), internet yoksa önbellek. Sadece gerçek HTML sayfası saklanır.
       e.respondWith(
         fetch(req)
-          .then((r) => { const copy = r.clone(); caches.open(CACHE).then((c) => c.put('index.html', copy)); return r; })
+          .then((r) => {
+            if (r.ok && (r.headers.get('content-type') || '').indexOf('text/html') >= 0) {
+              const copy = r.clone(); caches.open(CACHE).then((c) => c.put('index.html', copy));
+            }
+            return r;
+          })
           .catch(() => caches.match('index.html'))
       );
       return;
     }
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((r) => {
-        const copy = r.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); return r;
+        if (r.ok) { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        return r;
       }))
     );
     return;
