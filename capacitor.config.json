@@ -1,0 +1,6 @@
+{
+  "appId": "com.cepgarson.app",
+  "appName": "CepGarson",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
