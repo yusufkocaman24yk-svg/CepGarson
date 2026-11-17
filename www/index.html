@@ -35,6 +35,8 @@
         .splash-anim { animation: pulseLogo 1.2s ease-in-out forwards; }
         /* Fiş yazdırma: sadece fiş alanı basılır */
         #printArea { display: none; }
+        /* "Uygulamayı indir" bölümü yönetici panelinde görünmesin */
+        body:has(#sellerPanel:not(.hidden)) #apkFooter { display: none !important; }
         @media print {
             @page { size: 80mm auto; margin: 0; }
             body > *:not(#printArea) { display: none !important; }
@@ -438,6 +440,14 @@
                 <button onclick="printReceipt()" class="flex-1 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold"><i class="fa-solid fa-print mr-1"></i> Fiş Yazdır</button>
             </div>
         </div>
+    </div>
+
+    <!-- UYGULAMAYI İNDİR (yalnızca Android tarayıcıdan açılan web sürümünde görünür; APK içinde asla görünmez) -->
+    <div id="apkFooter" class="hidden w-full max-w-md mx-auto px-4 pt-2 pb-28 text-center">
+        <a id="apkDownloadBtn" href="CepGarson.apk" download="CepGarson.apk" class="inline-flex items-center justify-center gap-2 w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-100 font-semibold text-sm rounded-2xl py-3.5 transition">
+            <i class="fa-brands fa-android text-emerald-400 text-lg"></i> Uygulamayı İndir (Android)
+        </a>
+        <p class="text-[11px] text-slate-500 mt-2">İndirdikten sonra kurarken telefon "bilinmeyen kaynaklardan yükleme" izni isteyebilir.</p>
     </div>
 
     <!-- ÜRÜN SEÇENEKLERİ (MÜŞTERİ) -->
@@ -2899,6 +2909,25 @@
             d.textContent = 'Masa: ' + webTable;
             cp.insertBefore(d, cp.firstChild);
         }
+
+        // "Uygulamayı indir" bölümü: yalnızca Android tarayıcıdaki web sürümünde ve APK dosyası sitede varsa görünür.
+        // APK içinde (Capacitor), kurulu PWA'da, iPhone'da ve bilgisayarda gösterilmez.
+        function isStandalonePWA() {
+            return !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true);
+        }
+        async function setupApkFooter() {
+            const f = document.getElementById('apkFooter');
+            if (!f) return;
+            if (isNativeApp() || isStandalonePWA()) return;
+            if (!/Android/i.test(navigator.userAgent)) return;
+            if (!/^https?:$/.test(location.protocol)) return;
+            try {
+                const r = await fetch('CepGarson.apk', { method: 'HEAD', cache: 'no-store' });
+                if (!r.ok) return;                       // APK henüz siteye yüklenmemişse düğme çıkmaz
+            } catch (e) { return; }
+            f.classList.remove('hidden');
+        }
+        setupApkFooter();
 
         // PWA: tarayıcıda "yükle" + internet kesilince önbellekten açılma (APK içinde kapalı)
         if ('serviceWorker' in navigator && !isNativeApp() && /^https?:$/.test(location.protocol)) {
