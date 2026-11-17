@@ -1,0 +1,2938 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#020617">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>CepGarson - Dijital Adisyon & QR Menü</title>
+    <!-- Tailwind CSS & FontAwesome Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QR Kod Oluşturucu ve jsQR Kütüphanesi -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#fdf4f0', 500: '#f97316', 600: '#ea580c', 700: '#c2410c' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes pulseLogo {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .splash-anim { animation: pulseLogo 1.2s ease-in-out forwards; }
+        /* Fiş yazdırma: sadece fiş alanı basılır */
+        #printArea { display: none; }
+        @media print {
+            @page { size: 80mm auto; margin: 0; }
+            body > *:not(#printArea) { display: none !important; }
+            html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+            #printArea { display: block !important; width: 72mm; padding: 4mm; color: #000; background: #fff;
+                         font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.45; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+
+    <!-- AÇILIŞ SPLASH EKRANI -->
+    <div id="splashScreen" class="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center transition-opacity duration-700">
+        <div class="splash-anim flex flex-col items-center">
+            <div class="w-24 h-24 bg-gradient-to-tr from-brand-600 to-amber-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-brand-500/30 mb-4 border border-white/10">
+                <i class="fa-solid fa-utensils text-4xl text-white"></i>
+            </div>
+            <h1 class="text-3xl font-black tracking-wider bg-gradient-to-r from-brand-500 to-amber-400 bg-clip-text text-transparent">CepGarson</h1>
+            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest">Akıllı Adisyon & Sipariş</p>
+        </div>
+    </div>
+
+    <!-- ROL SEÇİM EKRANI -->
+    <div id="roleSelection" class="hidden flex-1 flex flex-col items-center justify-center p-6 max-w-md mx-auto w-full">
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-brand-600/20 text-brand-500 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-brand-500/30">
+                <i class="fa-solid fa-bell-concierge text-2xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold">Hoş Geldiniz</h2>
+            <p class="text-sm text-slate-400 mt-1">Lütfen devam etmek için rolünüzü seçin</p>
+        </div>
+        <div class="space-y-4 w-full">
+            <button onclick="showLoginModal()" class="w-full py-4 px-6 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-500 hover:to-brand-600 text-white font-semibold rounded-2xl shadow-lg shadow-brand-600/30 flex items-center justify-between transition-all active:scale-95">
+                <span class="flex items-center gap-3"><i class="fa-solid fa-user-shield text-xl"></i> Satıcı Olarak Gir</span>
+                <i class="fa-solid fa-chevron-right text-sm"></i>
+            </button>
+            <button onclick="openCustomerPanel()" class="w-full py-4 px-6 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-semibold rounded-2xl flex items-center justify-between transition-all active:scale-95">
+                <span class="flex items-center gap-3"><i class="fa-solid fa-mobile-screen text-xl text-brand-500"></i> Müşteri Olarak Gir</span>
+                <i class="fa-solid fa-chevron-right text-sm"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- SATICI GİRİŞ MODALI -->
+    <div id="loginModal" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm p-6 rounded-3xl shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-lock text-brand-500"></i> Satıcı Girişi</h3>
+                <button onclick="closeLoginModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Kullanıcı Adı</label>
+                    <input type="text" id="adminUser" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-500" placeholder="admin">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Şifre</label>
+                    <input type="password" id="adminPass" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-500" placeholder="1453">
+                </div>
+                <button onclick="handleAdminLogin()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-brand-600/20 mt-2">Giriş Yap</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SATICI YÖNETİCİ PANELİ -->
+    <div id="sellerPanel" class="hidden flex-1 flex flex-col max-w-4xl mx-auto w-full p-4">
+        <header class="flex justify-between items-center bg-slate-900 border border-slate-800 p-4 rounded-2xl mb-6">
+            <div class="flex items-center gap-3">
+                <img id="sellerAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" class="w-10 h-10 rounded-full object-cover border border-brand-500">
+                <div>
+                    <h2 class="text-sm font-bold" id="sellerTitle">Yönetici Paneli</h2>
+                    <span class="text-xs text-emerald-400 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Aktif Oturum</span>
+                </div>
+            </div>
+            <button onclick="logoutToRoleSelection()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-xl text-slate-300 transition"><i class="fa-solid fa-right-from-bracket mr-1"></i> Çıkış</button>
+        </header>
+
+        <!-- Satıcı Sekme Butonları -->
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-6">
+            <button onclick="switchSellerTab('menuTab')" class="seller-tab-btn bg-brand-600 text-white p-3 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition"><i class="fa-solid fa-utensils text-lg"></i> Menü</button>
+            <button onclick="switchSellerTab('ordersTab')" class="seller-tab-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 p-3 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition relative">
+                <i class="fa-solid fa-bell text-lg"></i> Siparişler
+                <span id="orderBadge" class="hidden absolute top-2 right-2 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span>
+            </button>
+            <button onclick="switchSellerTab('catTab')" class="seller-tab-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 p-3 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition"><i class="fa-solid fa-list text-lg"></i> Kategoriler</button>
+            <button onclick="switchSellerTab('tablesTab')" class="seller-tab-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 p-3 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition"><i class="fa-solid fa-chair text-lg"></i> Masalar</button>
+            <button onclick="switchSellerTab('qrTab')" class="seller-tab-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 p-3 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition"><i class="fa-solid fa-qrcode text-lg"></i> QR Kodlar</button>
+            <button onclick="switchSellerTab('reportTab')" class="seller-tab-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 p-3 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition"><i class="fa-solid fa-chart-line text-lg"></i> Gün Sonu</button>
+            <button onclick="switchSellerTab('passTab')" class="seller-tab-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 p-3 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition"><i class="fa-solid fa-key text-lg"></i> Şifre</button>
+            <button onclick="switchSellerTab('profileTab')" class="seller-tab-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 p-3 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition"><i class="fa-solid fa-gear text-lg"></i> Profil</button>
+            <button onclick="switchSellerTab('printersTab')" class="seller-tab-btn bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 p-3 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition"><i class="fa-solid fa-print text-lg"></i> Yazıcı</button>
+        </div>
+
+        <!-- Sekme İçerikleri -->
+        <div class="flex-1 bg-slate-900/50 border border-slate-800/80 rounded-3xl p-4 sm:p-6">
+            
+            <!-- 1. Menü Yönetimi -->
+            <div id="menuTab" class="seller-content space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-lg">Ürün Listesi & Kategoriler</h3>
+                    <button onclick="openProductModal()" class="bg-brand-600 hover:bg-brand-500 text-white text-xs px-4 py-2.5 rounded-xl font-semibold transition"><i class="fa-solid fa-plus mr-1"></i> Ürün Ekle</button>
+                </div>
+                <div id="sellerCategories" class="flex gap-2 overflow-x-auto pb-2 scrollbar-none"></div>
+                <div id="productList" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+            </div>
+
+            <!-- 2. Gelen Siparişler -->
+            <div id="ordersTab" class="seller-content hidden space-y-4">
+                <h3 class="font-bold text-lg">Gelen Masa Siparişleri</h3>
+                <div id="ordersList" class="space-y-3">
+                    <p class="text-slate-500 text-sm text-center py-8">Henüz gelen aktif bir sipariş yok.</p>
+                </div>
+            </div>
+
+            <!-- 3. Kategori Yönetimi -->
+            <div id="catTab" class="seller-content hidden space-y-4">
+                <h3 class="font-bold text-lg">Kategori Yönetimi & Sıralaması</h3>
+                <div class="flex gap-2 max-w-sm">
+                    <input type="text" id="newCatInput" placeholder="Yeni Kategori Adı" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+                    <button onclick="addNewCategory()" class="bg-brand-600 hover:bg-brand-500 px-4 py-2.5 rounded-xl text-xs font-semibold">Ekle</button>
+                </div>
+                <div id="categoryListContainer" class="space-y-2 max-w-md"></div>
+            </div>
+
+            <!-- 3b. Masa Durumu (Dolu / Boş) -->
+            <div id="tablesTab" class="seller-content hidden space-y-4">
+                <div class="flex justify-between items-center gap-2">
+                    <h3 class="font-bold text-lg">Masa Durumu</h3>
+                    <button onclick="freeAllTables()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl font-semibold"><i class="fa-solid fa-broom mr-1"></i> Tümünü Boşalt</button>
+                </div>
+                <div id="tablesSummary" class="grid grid-cols-3 gap-2"></div>
+                <p class="text-[11px] text-slate-500">Masaya dokunarak dolu / boş durumunu değiştirebilirsin. Masadan sipariş gelince masa otomatik "Dolu" olur; masayı boşaltmayı sen yaparsın.</p>
+                <div id="tablesGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+            </div>
+
+            <!-- 4. QR Kod Yönetimi -->
+            <div id="qrTab" class="seller-content hidden space-y-6">
+                <h3 class="font-bold text-lg">Masa QR & Barkod Oluşturucu</h3>
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 max-w-md">
+                    <label class="text-xs text-slate-400 block">Web adresi <span class="text-slate-600">(doluysa masa QR'ı bu adrese gider; müşteri telefonun kamerasıyla okutunca menü doğrudan açılır)</span></label>
+                    <div class="flex gap-2">
+                        <input type="url" id="siteUrlInput" placeholder="https://restoran.netlify.app" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+                        <button onclick="saveSiteUrl()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-xl text-xs font-semibold">Kaydet</button>
+                    </div>
+                    <p class="text-[11px] text-slate-500">Boş bırakırsanız QR yalnızca masa kodunu içerir (uygulamanın içinden okutulur). Değiştirince masaların QR'ları yenilenir; yeni QR'ları yazdırın.</p>
+                </div>
+                <div class="flex gap-2 max-w-sm">
+                    <input type="text" id="tableNumberInput" placeholder="Masa No (Örn: Masa 1)" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+                    <button onclick="generateTableQR()" class="bg-brand-600 hover:bg-brand-500 px-4 py-2.5 rounded-xl text-xs font-semibold">Oluştur</button>
+                </div>
+                <div id="qrContainer" class="grid grid-cols-2 sm:grid-cols-4 gap-4"></div>
+            </div>
+
+            <!-- 5. Gün Sonu Raporu -->
+            <div id="reportTab" class="seller-content hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-lg">📅 Gün Sonu & Ciro Raporu</h3>
+                    <input type="date" id="reportDateFilter" onchange="renderReport()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+                </div>
+                <div id="reportContainer" class="space-y-4"></div>
+            </div>
+
+            <!-- 6. Şifre Değiştir -->
+            <div id="passTab" class="seller-content hidden max-w-sm space-y-4">
+                <h3 class="font-bold text-lg">Yönetici Bilgilerini Güncelle</h3>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Yeni Kullanıcı Adı</label>
+                    <input type="text" id="newUsername" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Yeni Şifre</label>
+                    <input type="password" id="newPassword" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+                </div>
+                <button onclick="updateCredentials()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl text-xs">Kaydet</button>
+                <div id="pinSection" class="pt-4 mt-2 border-t border-slate-800 space-y-3">
+                    <h4 class="font-bold text-sm"><i class="fa-solid fa-shield-halved text-brand-500 mr-1"></i> İşlem PIN'i</h4>
+                    <p class="text-[11px] text-slate-500">Satış iptali, satış düzenleme ve "Günü yeniden aç" işlemlerinde sorulur. PIN'i görmek veya değiştirmek için <b>yönetici şifresi</b> gerekir.</p>
+
+                    <!-- KİLİTLİ -->
+                    <div id="pinLocked">
+                        <button onclick="unlockPinSection()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs"><i class="fa-solid fa-lock mr-1"></i> PIN Ayarlarını Aç (yönetici şifresi)</button>
+                        <p id="pinStatusLine" class="text-[11px] text-slate-500 mt-2"></p>
+                    </div>
+
+                    <!-- İKİ KUTULU FORM -->
+                    <div id="pinFormView" class="hidden space-y-3">
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1">Yeni PIN</label>
+                            <div class="relative">
+                                <input type="password" id="pinInput1" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="4-8 haneli rakam" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-32 py-2.5 text-sm">
+                                <button type="button" id="pinEye1" onclick="togglePinEye('pinInput1','pinEye1')" title="Şifre göster" class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400 hover:text-white text-[10px] px-2 py-1 rounded-lg"><i class="fa-solid fa-eye"></i><span>Şifre göster</span></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1">Yeni PIN (tekrar)</label>
+                            <div class="relative">
+                                <input type="password" id="pinInput2" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN'i tekrar yazın" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-32 py-2.5 text-sm">
+                                <button type="button" id="pinEye2" onclick="togglePinEye('pinInput2','pinEye2')" title="Şifre göster" class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400 hover:text-white text-[10px] px-2 py-1 rounded-lg"><i class="fa-solid fa-eye"></i><span>Şifre göster</span></button>
+                            </div>
+                        </div>
+                        <p id="pinMsg" class="hidden text-xs font-semibold text-red-400"></p>
+                        <button onclick="submitPinForm()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl text-xs">Güncelle</button>
+                        <button id="pinCancelBtn" onclick="cancelPinEdit()" class="hidden w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs">Vazgeç</button>
+                    </div>
+
+                    <!-- KAYITLI PIN + QR -->
+                    <div id="pinDisplayView" class="hidden space-y-3">
+                        <div id="pinSavedMsg" class="hidden">
+                            <div class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-3 py-2.5 text-xs font-semibold">
+                                <i class="fa-solid fa-circle-check text-lg"></i> PIN şifresi sisteme başarıyla kayıt edilmiştir.
+                            </div>
+                        </div>
+                        <div class="text-center bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                            <div class="text-[11px] text-slate-400">Kayıtlı PIN</div>
+                            <div id="pinShown" class="text-3xl font-black tracking-[0.3em] text-brand-500 font-mono mt-1"></div>
+                            <div id="pinQr" class="inline-block bg-white p-2 rounded-xl mt-3"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="editPin()" class="py-2.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-white font-semibold rounded-xl text-xs"><i class="fa-solid fa-pen mr-1"></i> Düzenle</button>
+                            <button onclick="lockPinSection()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs"><i class="fa-solid fa-lock mr-1"></i> Gizle</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 8. Yazıcılar -->
+            <div id="printersTab" class="seller-content hidden space-y-4">
+                <div class="flex justify-between items-center gap-2">
+                    <h3 class="font-bold text-lg"><i class="fa-solid fa-print text-brand-500 mr-1"></i> Yazıcılar</h3>
+                    <button onclick="openPrinterModal()" class="bg-brand-600 hover:bg-brand-500 text-white text-xs px-4 py-2.5 rounded-xl font-semibold transition"><i class="fa-solid fa-plus mr-1"></i> Yazıcı Ekle</button>
+                </div>
+                <p class="text-[11px] text-slate-500">Fiş yazıcınızı bir kez ekleyin. Sonra "Fiş Yazdır" dediğinizde adisyon fişi doğrudan seçili yazıcıdan çıkar. Wi-Fi/Ağ (LAN) ve Bluetooth termal fiş yazıcıları (ESC/POS) desteklenir.</p>
+                <div id="printerList" class="space-y-3"></div>
+            </div>
+
+            <!-- 7. Profil ve Tema -->
+            <div id="profileTab" class="seller-content hidden max-w-sm space-y-4">
+                <h3 class="font-bold text-lg">Profil ve Görünüm Ayarları</h3>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Tema Modu</label>
+                    <select id="themeSelector" onchange="changeTheme(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+                        <option value="dark">Gece Modu (Koyu)</option>
+                        <option value="light">Gündüz Modu (Açık)</option>
+                    </select>
+                </div>
+                <div class="pt-4 border-t border-slate-800 space-y-3">
+                    <h4 class="font-bold text-sm"><i class="fa-solid fa-receipt text-brand-500 mr-1"></i> Fiş Ayarları</h4>
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">İşletme Adı (fiş başlığı)</label>
+                        <input type="text" id="businessNameInput" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Fiş Alt Notu</label>
+                        <input type="text" id="receiptFooterInput" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+                    </div>
+                    <button onclick="saveReceiptSettings()" class="w-full py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-xl">Kaydet</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MÜŞTERİ PANELİ -->
+    <div id="customerPanel" class="hidden flex-1 flex flex-col max-w-2xl mx-auto w-full p-4">
+        <header class="flex justify-between items-center bg-slate-900 border border-slate-800 p-4 rounded-2xl mb-4">
+            <div>
+                <h2 class="font-bold text-brand-500">CepGarson Menü</h2>
+                <p id="activeTableIndicator" class="text-xs text-emerald-400 font-semibold mt-0.5">Masa: QR Okutulmadı</p>
+            </div>
+            <button onclick="logoutToRoleSelection()" class="text-xs bg-slate-800 px-3 py-2 rounded-xl text-slate-300">Geri Dön</button>
+        </header>
+
+        <!-- Kategori Butonları -->
+        <div id="customerCategories" class="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-none"></div>
+
+        <!-- Ürün Listesi -->
+        <div id="customerProductList" class="flex-1 space-y-3 mb-20"></div>
+
+        <!-- Alt Sepet Çubuğu -->
+        <div class="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4 max-w-2xl mx-auto flex justify-between items-center">
+            <div>
+                <span class="text-xs text-slate-400 block">Toplam Tutar</span>
+                <span id="cartTotal" class="text-lg font-bold text-brand-500">0.00 ₺</span>
+            </div>
+            <button onclick="openCartModal()" class="bg-brand-600 hover:bg-brand-500 px-5 py-3 rounded-2xl text-xs font-bold text-white shadow-lg shadow-brand-600/30"><i class="fa-solid fa-basket-shopping mr-1"></i> Sepeti Gör <span id="cartCount" class="ml-1 bg-white/25 rounded-full px-1.5 py-0.5 text-[10px]">0</span></button>
+        </div>
+    </div>
+
+    <!-- ÜRÜN EKLE/DÜZENLE MODALI -->
+    <div id="productModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md p-6 rounded-3xl space-y-4 max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h3 id="productModalTitle" class="font-bold">Yeni Ürün Ekle</h3>
+                <button onclick="closeProductModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <input type="hidden" id="editIndex" value="-1">
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Kategori</label>
+                <select id="prodCategory" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm"></select>
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Ürün Adı</label>
+                <input type="text" id="prodName" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Ürün Fiyatı (₺)</label>
+                <input type="number" id="prodPrice" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Ürün Görseli (Cihazdan Yükle)</label>
+                <input type="file" id="prodImage" accept="image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-600 file:text-white">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Açıklama</label>
+                <textarea id="prodDesc" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm" rows="2"></textarea>
+            </div>
+            <div class="pt-3 border-t border-slate-800 space-y-3">
+                <h4 class="text-sm font-bold"><i class="fa-solid fa-clock text-brand-500 mr-1"></i> Servis Saati</h4>
+                <p class="text-[11px] text-slate-500">Ürün sadece belirli saatlerde servis ediliyorsa (örn: ızgara köfte 17:00 – 23:00) saatleri seçin. <b>Boş bırakırsanız ürün menüde her zaman satışta kalır.</b></p>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Başlangıç saati</label>
+                        <input type="time" id="prodAvailFrom" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Bitiş saati</label>
+                        <input type="time" id="prodAvailTo" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
+                    </div>
+                </div>
+                <button type="button" onclick="clearAvailTimes()" class="text-[11px] text-slate-400 hover:text-white underline">Saatleri temizle (her zaman satışta olsun)</button>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Servis saati dışında müşteri menüsünde</label>
+                    <select id="prodAvailMode" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
+                        <option value="show">Soluk göster, saati yaz (sipariş verilemez)</option>
+                        <option value="hide">Menüden tamamen gizle</option>
+                    </select>
+                </div>
+                <p class="text-[11px] text-slate-500">Başlangıç saati bitişten büyükse gece yarısını geçen servis sayılır (örn: 18:00 – 02:00).</p>
+            </div>
+
+            <div class="pt-3 border-t border-slate-800 space-y-3">
+                <h4 class="text-sm font-bold"><i class="fa-solid fa-sliders text-brand-500 mr-1"></i> Seçenekler & Ekstreler</h4>
+                <p class="text-[11px] text-slate-500">Müşteri ürünü sepete eklerken bunları seçer, seçimler adisyon fişinde görünür. Örn: Turşu olsun / olmasın, yanına içecek, ekstra peynir (+ fiyat).</p>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" onclick="addOptionPreset('tursu')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-slate-200">+ Turşu</button>
+                    <button type="button" onclick="addOptionPreset('icecek')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-slate-200">+ İçecek</button>
+                    <button type="button" onclick="addOptionPreset('ekstra')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-slate-200">+ Ekstralar</button>
+                    <button type="button" onclick="addOptionPreset('bos')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-slate-200">+ Boş Grup</button>
+                </div>
+                <div id="optionEditor" class="space-y-3"></div>
+            </div>
+            <button onclick="saveProduct()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 rounded-xl text-xs font-semibold text-white">Kaydet</button>
+        </div>
+    </div>
+
+    <!-- GERÇEK TAM EKRAN YATAY ÇERÇEVELİ BARKOD / QR TARAYICI MODALI -->
+    <div id="checkoutModal" class="hidden fixed inset-0 z-50 bg-black flex flex-col items-center justify-center">
+        <!-- Tam Ekran Kamera Video Akışı -->
+        <video id="scannerVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+        <canvas id="scannerCanvas" class="hidden"></canvas>
+
+        <!-- Görseldeki Gibi Yatay Yarı Saydam Vizör Çerçevesi -->
+        <div id="scannerFrame" class="relative z-10 w-11/12 max-w-lg h-56 border-2 border-white/50 transition-colors bg-white/10 rounded-xl shadow-2xl flex items-center justify-center pointer-events-none">
+            <div class="w-full h-0.5 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse"></div>
+        </div>
+
+        <!-- Üst Sağ Kapatma Butonu -->
+        <button onclick="closeCheckoutModal()" class="absolute top-6 right-6 z-20 w-12 h-12 rounded-full bg-black/50 text-white flex items-center justify-center text-xl hover:bg-black/70">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <!-- Alt Bilgi ve Manuel Giriş Alanı -->
+        <div class="absolute bottom-6 left-4 right-4 z-20 max-w-md mx-auto space-y-2 text-center bg-black/60 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+            <p id="scannerStatus" role="status" aria-live="polite" class="text-xs text-emerald-400 font-semibold">Kamera hazırlanıyor…</p>
+            <div class="flex gap-2">
+                <input type="text" id="manualTableInput" placeholder="Masa No (Örn: Masa 1)" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-center font-bold text-white">
+                <button onclick="submitManualTable()" class="bg-brand-600 hover:bg-brand-500 px-4 py-3 rounded-xl text-xs font-semibold text-white">Onayla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FİŞ ÖNİZLEME VE YAZDIRMA MODALI -->
+    <div id="receiptModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-3xl p-5 flex flex-col max-h-[92vh]">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold flex items-center gap-2 text-white"><i class="fa-solid fa-receipt text-brand-500"></i> Sipariş Fişi</h3>
+                <button onclick="closeReceipt()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="overflow-y-auto flex-1 rounded-xl bg-slate-200 p-3">
+                <div id="receiptPreview" class="mx-auto bg-white text-black shadow" style="width:100%;max-width:300px;padding:14px 12px;font-family:'Courier New',monospace;font-size:12px;line-height:1.45;"></div>
+            </div>
+            <div class="mt-3 space-y-1">
+                <div class="flex justify-between items-center">
+                    <label class="text-[11px] text-slate-400">Yazıcı</label>
+                    <button onclick="goToPrintersTab()" class="text-[11px] text-brand-500 hover:underline"><i class="fa-solid fa-plus mr-0.5"></i> Yazıcı ekle / yönet</button>
+                </div>
+                <select id="receiptPrinterSelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"></select>
+            </div>
+            <div class="flex gap-2 mt-3">
+                <button onclick="closeReceipt()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold">Fişsiz Kapat</button>
+                <button onclick="printReceipt()" class="flex-1 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold"><i class="fa-solid fa-print mr-1"></i> Fiş Yazdır</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ÜRÜN SEÇENEKLERİ (MÜŞTERİ) -->
+    <div id="optionModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 flex flex-col max-h-[92vh]">
+            <div class="flex justify-between items-start gap-3">
+                <div>
+                    <h3 id="optionModalTitle" class="font-bold text-base"></h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Tercihlerinizi seçin</p>
+                </div>
+                <button onclick="closeOptionModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="optionGroups" class="overflow-y-auto flex-1 space-y-4 my-4"></div>
+            <p id="optionError" class="hidden text-xs text-red-400 mb-2"></p>
+            <div class="flex items-center justify-between gap-3">
+                <span id="optionTotal" class="text-lg font-bold text-brand-500">0.00 ₺</span>
+                <button onclick="confirmOptions()" class="bg-brand-600 hover:bg-brand-500 px-6 py-3 rounded-2xl text-xs font-bold text-white shadow-lg shadow-brand-600/30"><i class="fa-solid fa-plus mr-1"></i> Sepete Ekle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEPET (MÜŞTERİ) -->
+    <div id="cartModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 flex flex-col max-h-[92vh]">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-base"><i class="fa-solid fa-basket-shopping text-brand-500 mr-1"></i> Sepetiniz</h3>
+                <button onclick="closeCartModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="cartLines" class="overflow-y-auto flex-1 space-y-2 my-4"></div>
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <button id="svcHere" onclick="setOrderService('Burada')" class="py-2.5 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-utensils mr-1"></i> Burada Yenecek</button>
+                <button id="svcTakeaway" onclick="setOrderService('Paket')" class="py-2.5 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-bag-shopping mr-1"></i> Paket</button>
+            </div>
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs text-slate-400">Toplam</span>
+                <span id="cartModalTotal" class="text-xl font-black text-brand-500">0.00 ₺</span>
+            </div>
+            <button onclick="proceedToCheckout()" class="w-full py-3.5 bg-brand-600 hover:bg-brand-500 rounded-2xl text-xs font-bold text-white shadow-lg shadow-brand-600/30"><i class="fa-solid fa-qrcode mr-1"></i> Masa QR Okut & Siparişi Ver</button>
+        </div>
+    </div>
+
+    <!-- YAZICI EKLE MODALI -->
+    <div id="printerModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md p-5 rounded-3xl space-y-4 max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold"><i class="fa-solid fa-print text-brand-500 mr-1"></i> Yazıcı Ekle</h3>
+                <button onclick="closePrinterModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <button id="ptypeWifi" onclick="setPrinterType('wifi')" class="py-2.5 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-wifi mr-1"></i> Wi-Fi / Ağ</button>
+                <button id="ptypeBt" onclick="setPrinterType('bt')" class="py-2.5 rounded-xl text-xs font-semibold transition"><i class="fa-brands fa-bluetooth-b mr-1"></i> Bluetooth</button>
+            </div>
+
+            <button onclick="startPrinterQrScan()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-white"><i class="fa-solid fa-qrcode mr-1 text-brand-500"></i> QR Kod Okutarak Ekle</button>
+
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Yazıcı Adı</label>
+                <input type="text" id="pName" placeholder="Örn: Mutfak Yazıcısı" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+            </div>
+
+            <div id="pWifiPanel" class="space-y-3">
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <label class="text-xs text-slate-400 block mb-1">IP Adresi</label>
+                        <input type="text" id="pHost" inputmode="decimal" placeholder="192.168.1.50" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+                    </div>
+                    <div class="w-24">
+                        <label class="text-xs text-slate-400 block mb-1">Port</label>
+                        <input type="number" id="pPort" value="9100" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
+                    </div>
+                </div>
+                <button onclick="scanNetworkPrinters()" id="pScanNetBtn" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-200"><i class="fa-solid fa-magnifying-glass mr-1"></i> Ağda Yazıcı Ara</button>
+                <div id="pFoundHosts" class="space-y-1"></div>
+            </div>
+
+            <div id="pBtPanel" class="hidden space-y-3">
+                <p class="text-[11px] text-slate-500">Önce yazıcıyı telefonun Bluetooth ayarlarından eşleştirin (şifre genelde 0000 veya 1234), sonra buradan seçin.</p>
+                <button onclick="loadBluetoothPrinters()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-200"><i class="fa-brands fa-bluetooth-b mr-1"></i> Eşleşmiş Cihazları Getir</button>
+                <div id="pBtDevices" class="space-y-1"></div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Bluetooth Adresi (MAC)</label>
+                    <input type="text" id="pAddress" placeholder="AA:BB:CC:DD:EE:FF" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm uppercase">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Kağıt Genişliği</label>
+                    <select id="pPaper" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
+                        <option value="80">80 mm</option>
+                        <option value="58">58 mm</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Türkçe Karakter</label>
+                    <select id="pCharset" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm">
+                        <option value="cp857">Türkçe (CP857)</option>
+                        <option value="ascii">Sadeleştir (ş→s)</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="text-xs text-slate-400 block mb-1">Kod Sayfası No <span class="text-slate-600">(Türkçe harfler bozuk çıkarsa 13 yerine 19 deneyin)</span></label>
+                <input type="number" id="pCodePage" value="13" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button onclick="testPrinterFromForm()" class="py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-white"><i class="fa-solid fa-vial mr-1"></i> Test Fişi</button>
+                <button onclick="savePrinter()" class="py-3 bg-brand-600 hover:bg-brand-500 rounded-xl text-xs font-semibold text-white"><i class="fa-solid fa-check mr-1"></i> Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- YAZICI QR TARAYICI -->
+    <div id="printerScanModal" class="hidden fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center">
+        <video id="printerScanVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+        <canvas id="printerScanCanvas" class="hidden"></canvas>
+        <div class="relative z-10 w-64 h-64 border-2 border-white/60 rounded-2xl bg-white/10 pointer-events-none"></div>
+        <button onclick="stopPrinterQrScan()" class="absolute top-6 right-6 z-20 w-12 h-12 rounded-full bg-black/50 text-white flex items-center justify-center text-xl"><i class="fa-solid fa-xmark"></i></button>
+        <div class="absolute bottom-8 left-4 right-4 z-20 max-w-md mx-auto text-center bg-black/60 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+            <p id="printerScanStatus" class="text-xs text-emerald-400 font-semibold">Kamera hazırlanıyor…</p>
+            <p class="text-[10px] text-slate-400 mt-1">Yazıcıdaki / yazıcı kutusundaki QR kodu çerçeveye tutun</p>
+        </div>
+    </div>
+
+    <!-- SATIŞ İPTAL PENCERESİ -->
+    <div id="cancelSaleModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm p-5 rounded-3xl space-y-3 max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold"><i class="fa-solid fa-ban text-red-400 mr-1"></i> Satışı İptal Et</h3>
+                <button onclick="closeCancelSale()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="cancelSaleInfo" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs space-y-1"></div>
+            <p class="text-[11px] text-slate-400">İptal edilen satış cirodan düşer. Kayıt silinmez; "İptaller" bölümünde nedeniyle birlikte görünür.</p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="setCancelReason('Müşteri vazgeçti')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold">Müşteri vazgeçti</button>
+                <button type="button" onclick="setCancelReason('Yanlış sipariş')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold">Yanlış sipariş</button>
+                <button type="button" onclick="setCancelReason('Ürün hazırlanamadı')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold">Ürün hazırlanamadı</button>
+            </div>
+            <textarea id="cancelReason" rows="2" placeholder="İptal nedeni (zorunlu)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm"></textarea>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="closeCancelSale()" class="py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-200">Vazgeç</button>
+                <button onclick="submitCancelSale()" class="py-3 bg-red-600 hover:bg-red-500 rounded-xl text-xs font-semibold text-white">Satışı İptal Et</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SATIŞ DÜZENLE PENCERESİ -->
+    <div id="editSaleModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm p-5 rounded-3xl flex flex-col max-h-[92vh]">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold"><i class="fa-solid fa-pen text-amber-400 mr-1"></i> Satışı Düzenle <span id="editSaleNo" class="text-xs text-slate-400 font-normal"></span></h3>
+                <button onclick="closeEditSale()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2">Sadece ürün adedi azaltılabilir. Kaydedince <b>DÜZELTİLMİŞ FİŞ</b> çıkar; eski fiş kayıtta saklanır.</p>
+            <div id="editSaleLines" class="overflow-y-auto flex-1 space-y-2 my-3"></div>
+            <div class="flex justify-between text-xs mb-2">
+                <span class="text-slate-400">Eski toplam: <b id="editOldTotal" class="text-slate-200"></b></span>
+                <span class="text-slate-400">Yeni toplam: <b id="editNewTotal" class="text-brand-500"></b></span>
+            </div>
+            <input type="text" id="editReason" placeholder="Neden (isteğe bağlı)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm mb-2">
+            <p id="editSaleWarn" class="hidden text-xs text-amber-400 mb-2"></p>
+            <button onclick="saveEditSale()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 rounded-xl text-xs font-semibold text-white"><i class="fa-solid fa-receipt mr-1"></i> Kaydet & Yeni Fiş Çıkar</button>
+        </div>
+    </div>
+
+    <!-- ŞİFRE / PIN SORMA -->
+    <div id="authModal" class="hidden fixed inset-0 z-[65] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-xs p-5 rounded-3xl space-y-3">
+            <h3 class="font-bold text-sm"><i class="fa-solid fa-lock text-brand-500 mr-1"></i> <span id="authTitle"></span></h3>
+            <p id="authHint" class="text-[11px] text-slate-400"></p>
+            <input type="password" id="authInput" onkeydown="if(event.key==='Enter')submitAuth()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-500">
+            <p id="authError" class="hidden text-xs text-red-400">Hatalı, tekrar deneyin.</p>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="closeAuth()" class="py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-200">Vazgeç</button>
+                <button onclick="submitAuth()" class="py-2.5 bg-brand-600 hover:bg-brand-500 rounded-xl text-xs font-semibold text-white">Onayla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BİLDİRİM -->
+    <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] max-w-[90vw] px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl text-white text-center"></div>
+
+    <!-- JAVASCRIPT MANTIĞI -->
+    <script>
+        let adminData = JSON.parse(localStorage.getItem('cg_admin')) || { user: 'admin', pass: '1453' };
+        let categories = JSON.parse(localStorage.getItem('cg_categories')) || ['Kahvaltılık', 'Ara Öğün', 'Yemek', 'Çorba', 'Soğuk İçecek', 'Sıcak İçecek', 'Tatlı / Dondurma'];
+        let products = JSON.parse(localStorage.getItem('cg_products')) || [];
+        let orders = JSON.parse(localStorage.getItem('cg_orders')) || [];
+        let completedOrders = JSON.parse(localStorage.getItem('cg_completed_orders')) || [];
+        let activeTables = JSON.parse(localStorage.getItem('cg_tables')) || ["Masa 1", "Masa 2", "Masa 3", "Masa 4", "123"];
+        let cart = {};
+        let currentImageBase64 = "";
+        let activeCustomerCategory = 'Tümü';
+        let activeSellerCategory = 'Tümü';
+        
+        let videoStream = null;
+        let scanningActive = false;
+        let flashTrack = null;
+        let lastBadCode = '';
+        let lastBadTime = 0;
+        let statusTimer = null;
+
+        // ---- YEREL TARİH / SAAT ----
+        // Önceden toISOString() (UTC) kullanılıyordu: Türkiye'de gece 00:00-03:00 arası
+        // yapılan satışlar bir önceki güne yazılıyordu. Artık cihazın yerel saati kullanılır.
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function localDateStr(d) { d = d || new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+        function localTimeStr(d) { d = d || new Date(); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+
+        // Eski (UTC tarihli) kayıtları bir kez yerel tarihe çevirir.
+        function migrateOrderDates() {
+            if (localStorage.getItem('cg_date_fix_v1')) return;
+            const fix = (o) => {
+                if (!o || o.ts || !o.date || !o.time) return;
+                const m = String(o.time).match(/(\d{1,2}):(\d{2})\s*([AaPp][Mm])?/);
+                const dm = String(o.date).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (!m || !dm) return;
+                let h = parseInt(m[1], 10); const mi = parseInt(m[2], 10);
+                if (m[3]) { const pm = /p/i.test(m[3]); if (pm && h < 12) h += 12; if (!pm && h === 12) h = 0; }
+                for (const k of [0, 1, -1]) {
+                    const local = new Date(+dm[1], +dm[2] - 1, +dm[3] + k, h, mi);
+                    if (local.toISOString().slice(0, 10) === o.date) { o.date = localDateStr(local); o.ts = local.getTime(); return; }
+                }
+            };
+            orders.forEach(fix);
+            completedOrders.forEach(fix);
+            localStorage.setItem('cg_orders', JSON.stringify(orders));
+            localStorage.setItem('cg_completed_orders', JSON.stringify(completedOrders));
+            localStorage.setItem('cg_date_fix_v1', '1');
+        }
+        migrateOrderDates();
+
+        function toast(msg, isErr, ms) {
+            const t = document.getElementById('toast');
+            if (!t) return;
+            t.textContent = msg;
+            t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] max-w-[90vw] px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl text-white text-center ' + (isErr ? 'bg-red-600' : 'bg-emerald-600');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => t.classList.add('hidden'), ms || (isErr ? 5000 : 3000));
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('splashScreen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('splashScreen').classList.add('hidden');
+                    if (webTable) { openCustomerPanel(); showWebTableBanner(); }
+                    else document.getElementById('roleSelection').classList.remove('hidden');
+                }, 700);
+            }, 1200);
+        });
+
+        function showLoginModal() { document.getElementById('loginModal').classList.remove('hidden'); }
+        function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
+        function logoutToRoleSelection() {
+            stopLiveScanner();
+            if (typeof lockPinSection === 'function') lockPinSection();
+            document.getElementById('sellerPanel').classList.add('hidden');
+            document.getElementById('customerPanel').classList.add('hidden');
+            document.getElementById('roleSelection').classList.remove('hidden');
+        }
+
+        function handleAdminLogin() {
+            let u = document.getElementById('adminUser').value;
+            let p = document.getElementById('adminPass').value;
+            if(u === adminData.user && p === adminData.pass) {
+                closeLoginModal();
+                document.getElementById('roleSelection').classList.add('hidden');
+                document.getElementById('sellerPanel').classList.remove('hidden');
+                renderSellerCategories();
+                renderSellerProducts('Tümü');
+                renderOrders();
+                renderCategoryManager();
+                
+                let todayStr = localDateStr();
+                document.getElementById('reportDateFilter').value = todayStr;
+                renderReport();
+            } else {
+                alert('Hatalı kullanıcı adı veya şifre! (admin / 1453)');
+            }
+        }
+
+        function switchSellerTab(tabId) {
+            if (tabId !== 'passTab' && typeof lockPinSection === 'function') lockPinSection();
+            document.querySelectorAll('.seller-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.seller-tab-btn').forEach(el => {
+                el.classList.remove('bg-brand-600', 'text-white');
+                el.classList.add('bg-slate-900', 'text-slate-300');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            const btn = (typeof event !== 'undefined' && event && event.currentTarget && event.currentTarget.classList && event.currentTarget.classList.contains('seller-tab-btn'))
+                ? event.currentTarget
+                : document.querySelector('.seller-tab-btn[onclick*="\'' + tabId + '\'"]');
+            if (btn) {
+                btn.classList.add('bg-brand-600', 'text-white');
+                btn.classList.remove('bg-slate-900', 'text-slate-300');
+            }
+
+            if(tabId === 'menuTab') { renderSellerCategories(); renderSellerProducts(activeSellerCategory); }
+            if(tabId === 'reportTab') { renderReport(); }
+            if(tabId === 'catTab') { renderCategoryManager(); }
+            if(tabId === 'qrTab') { renderTableQRs(); }
+            if(tabId === 'tablesTab') { renderTablesTab(); }
+            if(tabId === 'profileTab') { loadReceiptSettings(); }
+            if(tabId === 'printersTab') { renderPrinters(); }
+        }
+
+        function renderCategoryManager() {
+            let container = document.getElementById('categoryListContainer');
+            let html = '';
+            categories.forEach((cat, idx) => {
+                html += `<div class="bg-slate-950 border border-slate-800 p-3 rounded-xl flex justify-between items-center text-xs">
+                    <span><b>${idx + 1}.</b> ${cat}</span>
+                    <button onclick="deleteCategory(${idx})" class="text-red-400 hover:text-red-300"><i class="fa-solid fa-trash"></i></button>
+                </div>`;
+            });
+            container.innerHTML = html;
+            updateCategorySelects();
+        }
+
+        function addNewCategory() {
+            let val = document.getElementById('newCatInput').value.trim();
+            if(!val) return alert('Kategori adı boş olamaz!');
+            if(categories.includes(val)) return alert('Bu kategori zaten var!');
+            categories.push(val);
+            localStorage.setItem('cg_categories', JSON.stringify(categories));
+            document.getElementById('newCatInput').value = '';
+            renderCategoryManager();
+        }
+
+        function deleteCategory(idx) {
+            categories.splice(idx, 1);
+            localStorage.setItem('cg_categories', JSON.stringify(categories));
+            renderCategoryManager();
+        }
+
+        function updateCategorySelects() {
+            let sel = document.getElementById('prodCategory');
+            if(!sel) return;
+            let html = '';
+            categories.forEach(c => { html += `<option value="${c}">${c}</option>`; });
+            sel.innerHTML = html;
+        }
+
+        function renderSellerCategories() {
+            let cats = ['Tümü', ...categories];
+            let html = '';
+            cats.forEach(c => {
+                let isActive = activeSellerCategory === c;
+                html += `<button onclick="renderSellerProducts('${c}')" class="${isActive ? 'bg-brand-600 text-white' : 'bg-slate-900 border border-slate-800 text-slate-300'} px-4 py-2 rounded-xl text-xs whitespace-nowrap font-semibold transition">${c}</button>`;
+            });
+            document.getElementById('sellerCategories').innerHTML = html;
+        }
+
+        function openProductModal(isEdit = false, index = -1) {
+            updateCategorySelects();
+            document.getElementById('productModal').classList.remove('hidden');
+            if(isEdit) {
+                let p = products[index];
+                document.getElementById('productModalTitle').innerText = "Ürünü Düzenle";
+                document.getElementById('editIndex').value = index;
+                document.getElementById('prodCategory').value = p.category;
+                document.getElementById('prodName').value = p.name;
+                document.getElementById('prodPrice').value = p.price;
+                document.getElementById('prodDesc').value = p.desc;
+                currentImageBase64 = p.image;
+                editOptions = JSON.parse(JSON.stringify(p.options || []));
+                document.getElementById('prodAvailFrom').value = p.availFrom || '';
+                document.getElementById('prodAvailTo').value = p.availTo || '';
+                document.getElementById('prodAvailMode').value = p.availMode === 'hide' ? 'hide' : 'show';
+            } else {
+                document.getElementById('productModalTitle').innerText = "Yeni Ürün Ekle";
+                document.getElementById('editIndex').value = -1;
+                document.getElementById('prodName').value = "";
+                document.getElementById('prodPrice').value = "";
+                document.getElementById('prodDesc').value = "";
+                currentImageBase64 = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200";
+                editOptions = [];
+                document.getElementById('prodAvailFrom').value = '';
+                document.getElementById('prodAvailTo').value = '';
+                document.getElementById('prodAvailMode').value = 'show';
+            }
+            renderOptionEditor();
+        }
+        function closeProductModal() { document.getElementById('productModal').classList.add('hidden'); }
+
+        document.getElementById('prodImage').addEventListener('change', function(e) {
+            let file = e.target.files[0];
+            if(file) {
+                let reader = new FileReader();
+                reader.onload = function(evt) { currentImageBase64 = evt.target.result; }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // ---- ÜRÜN SEÇENEKLERİ / EKSTRELER (satıcı düzenleyicisi) ----
+        let editOptions = [];
+
+        function newOptionGroup(name, type, required, choices) {
+            return {
+                id: 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                name: name, type: type, required: required,
+                choices: choices.map(c => ({ name: c[0], price: c[1] || 0 }))
+            };
+        }
+
+        function addOptionPreset(kind) {
+            const presets = {
+                tursu:  () => newOptionGroup('Turşu', 'single', true, [['Olsun', 0], ['Olmasın', 0]]),
+                icecek: () => newOptionGroup('İçecek', 'single', false, [['Kola', 0], ['Ayran', 0], ['Su', 0]]),
+                ekstra: () => newOptionGroup('Ekstralar', 'multi', false, [['Ekstra peynir', 0], ['Ekstra sos', 0]]),
+                bos:    () => newOptionGroup('', 'single', false, [['', 0]])
+            };
+            editOptions.push(presets[kind]());
+            renderOptionEditor();
+        }
+
+        function sanitizeOptions(list) {
+            return (list || []).map(g => ({
+                id: g.id || ('g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+                name: String(g.name || '').trim(),
+                type: g.type === 'multi' ? 'multi' : 'single',
+                required: !!g.required,
+                choices: (g.choices || []).map(c => ({ name: String(c.name || '').trim(), price: parseFloat(c.price) || 0 })).filter(c => c.name)
+            })).filter(g => g.name && g.choices.length > 0);
+        }
+
+        function renderOptionEditor() {
+            const box = document.getElementById('optionEditor');
+            if (!box) return;
+            box.innerHTML = '';
+            if (editOptions.length === 0) {
+                box.innerHTML = '<p class="text-[11px] text-slate-600">Bu ürün için seçenek yok. Yukarıdaki düğmelerle ekleyebilirsiniz.</p>';
+                return;
+            }
+            const inputCls = 'bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs w-full';
+            editOptions.forEach((g, gi) => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-2';
+
+                const head = document.createElement('div');
+                head.className = 'flex gap-2 items-center';
+                const nameIn = document.createElement('input');
+                nameIn.className = inputCls; nameIn.placeholder = 'Grup adı (örn: Turşu, İçecek)'; nameIn.value = g.name;
+                nameIn.oninput = () => { g.name = nameIn.value; };
+                const delG = document.createElement('button');
+                delG.type = 'button'; delG.className = 'text-red-400 hover:text-red-300 px-2';
+                delG.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                delG.onclick = () => { editOptions.splice(gi, 1); renderOptionEditor(); };
+                head.append(nameIn, delG);
+
+                const meta = document.createElement('div');
+                meta.className = 'flex gap-2 items-center';
+                const typeSel = document.createElement('select');
+                typeSel.className = inputCls;
+                typeSel.innerHTML = '<option value="single">Tek seçim</option><option value="multi">Çoklu seçim</option>';
+                typeSel.value = g.type;
+                typeSel.onchange = () => { g.type = typeSel.value; };
+                const reqLbl = document.createElement('label');
+                reqLbl.className = 'flex items-center gap-1.5 text-[11px] text-slate-300 whitespace-nowrap';
+                const reqCb = document.createElement('input');
+                reqCb.type = 'checkbox'; reqCb.checked = !!g.required;
+                reqCb.onchange = () => { g.required = reqCb.checked; };
+                reqLbl.append(reqCb, document.createTextNode('Zorunlu'));
+                meta.append(typeSel, reqLbl);
+
+                const list = document.createElement('div');
+                list.className = 'space-y-1.5';
+                g.choices.forEach((c, ci) => {
+                    const row = document.createElement('div');
+                    row.className = 'flex gap-2 items-center';
+                    const cn = document.createElement('input');
+                    cn.className = inputCls; cn.placeholder = 'Seçenek (örn: Olsun)'; cn.value = c.name;
+                    cn.oninput = () => { c.name = cn.value; };
+                    const cp = document.createElement('input');
+                    cp.type = 'number'; cp.step = '0.01'; cp.min = '0';
+                    cp.className = 'bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-xs w-20';
+                    cp.placeholder = '+₺'; cp.value = c.price ? c.price : '';
+                    cp.oninput = () => { c.price = parseFloat(cp.value) || 0; };
+                    const cd = document.createElement('button');
+                    cd.type = 'button'; cd.className = 'text-slate-500 hover:text-red-400 px-1';
+                    cd.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    cd.onclick = () => { g.choices.splice(ci, 1); renderOptionEditor(); };
+                    row.append(cn, cp, cd);
+                    list.appendChild(row);
+                });
+
+                const add = document.createElement('button');
+                add.type = 'button';
+                add.className = 'text-[11px] text-brand-500 hover:underline';
+                add.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> Seçenek ekle';
+                add.onclick = () => { g.choices.push({ name: '', price: 0 }); renderOptionEditor(); };
+
+                card.append(head, meta, list, add);
+                box.appendChild(card);
+            });
+        }
+
+        function clearAvailTimes() {
+            document.getElementById('prodAvailFrom').value = '';
+            document.getElementById('prodAvailTo').value = '';
+        }
+
+        function saveProduct() {
+            const availFrom = document.getElementById('prodAvailFrom').value || '';
+            const availTo = document.getElementById('prodAvailTo').value || '';
+            if (availFrom && availTo && availFrom === availTo) {
+                return toast('Başlangıç ve bitiş saati aynı olamaz. Her zaman satışta olsun istiyorsanız saatleri temizleyin.', true);
+            }
+            let index = parseInt(document.getElementById('editIndex').value);
+            let p = {
+                id: (index === -1 || !products[index].id) ? 'prod_' + Date.now() + Math.random().toString(36).substring(2, 7) : products[index].id,
+                category: document.getElementById('prodCategory').value,
+                name: document.getElementById('prodName').value,
+                price: parseFloat(document.getElementById('prodPrice').value) || 0,
+                image: currentImageBase64 || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200",
+                desc: document.getElementById('prodDesc').value,
+                options: sanitizeOptions(editOptions),
+                availFrom: availFrom,
+                availTo: availTo,
+                availMode: document.getElementById('prodAvailMode').value === 'hide' ? 'hide' : 'show'
+            };
+            if(index === -1) { products.push(p); } else { products[index] = p; }
+            localStorage.setItem('cg_products', JSON.stringify(products));
+            closeProductModal();
+            renderSellerProducts(activeSellerCategory);
+        }
+
+        function renderSellerProducts(cat) {
+            activeSellerCategory = cat;
+            renderSellerCategories();
+
+            let html = '';
+            let filtered = cat === 'Tümü' ? products : products.filter(p => p.category === cat);
+            
+            filtered.forEach((p) => {
+                let originalIndex = products.findIndex(item => item.id === p.id);
+                html += `<div class="bg-slate-950 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
+                    <img src="${p.image}" class="w-14 h-14 rounded-xl object-cover">
+                    <div class="flex-1">
+                        <span class="text-[10px] text-brand-500 bg-brand-500/10 px-2 py-0.5 rounded-md font-semibold">${p.category}</span>
+                        <h4 class="font-bold text-sm mt-1">${p.name}</h4>
+                        <span class="text-xs text-slate-400">${p.price} ₺</span>
+                        ${(p.options && p.options.length) ? `<span class="text-[10px] text-amber-400 ml-2"><i class="fa-solid fa-sliders mr-0.5"></i>${p.options.length} seçenek grubu</span>` : ''}
+                        ${(p.availFrom || p.availTo) ? `<div class="mt-1"><span class="text-[10px] text-sky-300"><i class="fa-solid fa-clock mr-0.5"></i>${escapeHtml(p.availFrom || '00:00')} – ${escapeHtml(p.availTo || '24:00')}</span>${productAvailability(p).available ? '' : ' <span class="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-semibold">Şu an servis dışı</span>'}</div>` : ''}
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <button onclick="openProductModal(true, ${originalIndex})" class="p-2 bg-slate-800 text-xs rounded-lg text-amber-400"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteProduct(${originalIndex})" class="p-2 bg-slate-800 text-xs rounded-lg text-red-400"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('productList').innerHTML = html || '<p class="text-slate-500 text-xs col-span-2 text-center py-6">Kayıtlı ürün bulunmuyor.</p>';
+        }
+
+        function deleteProduct(idx) {
+            products.splice(idx, 1);
+            localStorage.setItem('cg_products', JSON.stringify(products));
+            renderSellerProducts(activeSellerCategory);
+        }
+
+        // ---- MASA DURUMU (DOLU / BOŞ) ----
+        let tableStatus = JSON.parse(localStorage.getItem('cg_table_status')) || {};
+        function saveTableStatus() { localStorage.setItem('cg_table_status', JSON.stringify(tableStatus)); }
+        function isTableOccupied(no) { return tableStatus[no] === 'dolu'; }
+
+        function setTableOccupied(no, occupied) {
+            if (occupied) tableStatus[no] = 'dolu'; else delete tableStatus[no];
+            saveTableStatus();
+        }
+
+        function toggleTable(idx) {
+            const no = activeTables[idx];
+            if (no === undefined) return;
+            const pending = orders.filter(o => o.table === no).length;
+            if (isTableOccupied(no) && pending > 0 &&
+                !confirm(no + ' için ' + pending + ' bekleyen sipariş var. Yine de masayı boşaltmak istiyor musunuz?')) return;
+            setTableOccupied(no, !isTableOccupied(no));
+            renderTablesTab();
+        }
+
+        function freeAllTables() {
+            if (!confirm('Tüm masalar "Boş" olarak işaretlensin mi?')) return;
+            tableStatus = {};
+            saveTableStatus();
+            renderTablesTab();
+        }
+
+        function renderTablesTab() {
+            const grid = document.getElementById('tablesGrid');
+            const summary = document.getElementById('tablesSummary');
+            if (!grid || !summary) return;
+
+            const occupiedCount = activeTables.filter(isTableOccupied).length;
+            summary.innerHTML = `
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3 text-center"><div class="text-[11px] text-slate-400">Toplam</div><div class="text-xl font-black">${activeTables.length}</div></div>
+                <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3 text-center"><div class="text-[11px] text-emerald-400">Boş</div><div class="text-xl font-black text-emerald-400">${activeTables.length - occupiedCount}</div></div>
+                <div class="bg-red-500/10 border border-red-500/30 rounded-2xl p-3 text-center"><div class="text-[11px] text-red-400">Dolu</div><div class="text-xl font-black text-red-400">${occupiedCount}</div></div>`;
+
+            if (activeTables.length === 0) {
+                grid.innerHTML = '<p class="text-slate-500 text-sm col-span-full text-center py-6">Henüz masa yok. QR Kodlar sekmesinden masa ekleyin.</p>';
+                return;
+            }
+            grid.innerHTML = '';
+            activeTables.forEach((no, idx) => {
+                const occ = isTableOccupied(no);
+                const myOrders = orders.filter(o => o.table === no);
+                const pendingTotal = myOrders.reduce((sum, o) => sum + o.total, 0);
+                const card = document.createElement('button');
+                card.className = 'text-left p-4 rounded-2xl border-2 transition active:scale-95 ' +
+                    (occ ? 'bg-red-500/10 border-red-500/50 hover:bg-red-500/20' : 'bg-emerald-500/10 border-emerald-500/40 hover:bg-emerald-500/20');
+                card.onclick = () => toggleTable(idx);
+                const title = document.createElement('div');
+                title.className = 'font-bold text-sm mb-1';
+                title.textContent = no;
+                const badge = document.createElement('div');
+                badge.className = 'text-xs font-semibold ' + (occ ? 'text-red-400' : 'text-emerald-400');
+                badge.innerHTML = occ ? '<i class="fa-solid fa-circle mr-1 text-[8px]"></i> DOLU' : '<i class="fa-solid fa-circle mr-1 text-[8px]"></i> BOŞ';
+                card.append(title, badge);
+                if (myOrders.length > 0) {
+                    const info = document.createElement('div');
+                    info.className = 'text-[11px] text-slate-400 mt-1';
+                    info.textContent = myOrders.length + ' bekleyen sipariş · ' + pendingTotal.toFixed(2) + ' ₺';
+                    card.append(info);
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        function findRegisteredTable(code) {
+            const c = String(code).trim().toLocaleLowerCase('tr');
+            return activeTables.find(t => String(t).trim().toLocaleLowerCase('tr') === c) || null;
+        }
+
+        function renderTableQRs() {
+            const container = document.getElementById('qrContainer');
+            if (!container) return;
+            const su = document.getElementById('siteUrlInput'); if (su) su.value = getSiteUrl();
+            container.innerHTML = '';
+            if (activeTables.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 text-sm col-span-full text-center py-6">Henüz kayıtlı QR kod yok.</p>';
+                return;
+            }
+            activeTables.forEach((no, idx) => {
+                const div = document.createElement('div');
+                div.className = "bg-slate-950 p-3 rounded-2xl border border-slate-800 text-center space-y-2";
+                const label = document.createElement('span');
+                label.className = 'text-xs font-bold text-brand-500 block';
+                label.textContent = 'Masa / Kod: ' + no;
+                const qrTarget = document.createElement('div');
+                qrTarget.className = 'flex justify-center bg-white p-2 rounded-xl';
+                const del = document.createElement('button');
+                del.className = 'text-[11px] text-red-400 hover:text-red-300';
+                del.innerHTML = '<i class="fa-solid fa-trash"></i> Sil';
+                del.onclick = () => deleteTableQR(idx);
+                div.append(label, qrTarget, del);
+                container.appendChild(div);
+                if (typeof QRCode === 'function') {
+                    new QRCode(qrTarget, { text: qrTextFor(no), width: 120, height: 120, correctLevel: QRCode.CorrectLevel.M });
+                } else {
+                    qrTarget.textContent = 'QR oluşturucu yüklenemedi';
+                }
+            });
+        }
+
+        function generateTableQR() {
+            let no = document.getElementById('tableNumberInput').value.trim();
+            if(!no) return alert('Lütfen masa numarası girin!');
+            if(findRegisteredTable(no)) return alert('Bu masa için QR kod zaten kayıtlı!');
+            activeTables.push(no);
+            localStorage.setItem('cg_tables', JSON.stringify(activeTables));
+            document.getElementById('tableNumberInput').value = '';
+            renderTableQRs();
+        }
+
+        function deleteTableQR(idx) {
+            if(!confirm(activeTables[idx] + ' QR kodunu silmek istiyor musunuz? Bu kod artık sipariş için geçerli olmayacak.')) return;
+            setTableOccupied(activeTables[idx], false);
+            activeTables.splice(idx, 1);
+            localStorage.setItem('cg_tables', JSON.stringify(activeTables));
+            renderTableQRs();
+        }
+
+        function renderOrders() {
+            let list = document.getElementById('ordersList');
+            let badge = document.getElementById('orderBadge');
+            if(orders.length > 0) {
+                badge.innerText = orders.length;
+                badge.classList.remove('hidden');
+                let html = '';
+                orders.forEach((o, idx) => {
+                    let itemsHtml = '';
+                    o.cartItems.forEach((ci, itemIdx) => {
+                        const optsHtml = (ci.options || []).map(op => `<span class="block text-[10px] text-slate-400 pl-3">+ ${escapeHtml(optText(op))}</span>`).join('');
+                        itemsHtml += `<div class="flex justify-between items-center bg-slate-900 px-3 py-1.5 rounded-lg my-1 text-xs">
+                            <span>${ci.qty}x ${escapeHtml(ci.name)} (${(ci.price * ci.qty).toFixed(2)} ₺)${optsHtml}</span>
+                            <button onclick="sellerRemoveItem(${idx}, ${itemIdx})" class="text-red-400 hover:text-red-300 px-2 py-0.5 bg-red-500/10 rounded">Ürünü Çıkart</button>
+                        </div>`;
+                    });
+
+                    html += `<div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="flex items-center gap-1.5"><span class="text-xs font-bold bg-brand-500/20 text-brand-500 px-2.5 py-1 rounded-lg">Masa: ${escapeHtml(o.table)}</span>${o.service === 'Paket' ? '<span class="text-[10px] font-bold bg-amber-500/20 text-amber-400 px-2 py-1 rounded-lg"><i class="fa-solid fa-bag-shopping mr-1"></i>PAKET</span>' : ''}</span>
+                            <span class="text-[10px] text-slate-400">Saat: ${o.time} | Tarih: ${o.date}</span>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-xs text-slate-300 font-semibold">Sipariş Edilenler:</p>
+                            ${itemsHtml}
+                        </div>
+                        <div class="flex justify-between items-center pt-2 border-t border-slate-800">
+                            <span class="text-sm font-bold text-brand-500">Toplam: ${o.total.toFixed(2)} ₺</span>
+                            <div class="flex gap-2">
+                                <button onclick="sellerCancelOrder(${idx})" class="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold transition">Komple İptal Et</button>
+                                <button onclick="completeOrder(${idx})" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold transition"><i class="fa-solid fa-check mr-1"></i> Tamamla / Onayla</button>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                list.innerHTML = html;
+            } else {
+                badge.classList.add('hidden');
+                list.innerHTML = '<p class="text-slate-500 text-sm text-center py-8">Henüz gelen aktif bir sipariş yok.</p>';
+            }
+        }
+
+        function sellerRemoveItem(orderIdx, itemIdx) {
+            let order = orders[orderIdx];
+            order.cartItems.splice(itemIdx, 1);
+            if(order.cartItems.length === 0) {
+                orders.splice(orderIdx, 1);
+                alert('Tüm ürünler çıkartıldığı için sipariş iptal edildi.');
+            } else {
+                order.total = order.cartItems.reduce((sum, i) => sum + (i.price * i.qty), 0);
+                alert('Ürün siparişten çıkartıldı ve müşteriye bildirildi.');
+            }
+            localStorage.setItem('cg_orders', JSON.stringify(orders));
+            renderOrders();
+        }
+
+        function sellerCancelOrder(idx) {
+            if(confirm('Müşteri tüm siparişi istemediğini belirtti. Siparişi komple iptal etmek istiyor musunuz?')) {
+                const _po = orders[idx];
+                logAudit('bekleyen_iptal', 'Bekleyen sipariş iptal edildi: Masa ' + _po.table + ', ' + Number(_po.total).toFixed(2) + ' ₺', _po.date);
+                orders.splice(idx, 1);
+                localStorage.setItem('cg_orders', JSON.stringify(orders));
+                renderOrders();
+                alert('Sipariş komple iptal edildi.');
+            }
+        }
+
+        // ---- FİŞ SİSTEMİ ----
+        function escapeHtml(v) {
+            return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+        function getBusinessName() { return localStorage.getItem('cg_business_name') || 'CepGarson'; }
+        function getReceiptFooter() { return localStorage.getItem('cg_receipt_footer') || 'Afiyet olsun!'; }
+        function nextReceiptNo() {
+            const n = (parseInt(localStorage.getItem('cg_receipt_counter')) || 0) + 1;
+            localStorage.setItem('cg_receipt_counter', String(n));
+            return String(n).padStart(5, '0');
+        }
+        function formatMoney(n) { return Number(n).toFixed(2) + ' ₺'; }
+
+        function optText(op) {
+            return op.group + ': ' + op.name + (op.price > 0 ? ' (+' + Number(op.price).toFixed(2) + ')' : '');
+        }
+
+        function buildReceiptInner(o) {
+            const line = '<div style="border-top:1px dashed #000;margin:6px 0;"></div>';
+            let rows = '';
+            (o.cartItems || []).forEach(i => {
+                rows += `<div style="display:flex;justify-content:space-between;gap:8px;">
+                    <span>${i.qty} x ${escapeHtml(i.name)}</span>
+                    <span style="white-space:nowrap;">${formatMoney(i.price * i.qty)}</span></div>`;
+                (i.options || []).forEach(op => {
+                    rows += `<div style="font-size:11px;padding-left:12px;">+ ${escapeHtml(optText(op))}</div>`;
+                });
+                if (i.qty > 1) rows += `<div style="font-size:10px;color:#444;padding-left:10px;">(${formatMoney(i.price)} / adet)</div>`;
+            });
+            const svc = o.service
+                ? `<div style="display:flex;justify-content:space-between;font-weight:bold;"><span>Servis:</span><span>${escapeHtml(String(o.service).toLocaleUpperCase('tr'))}</span></div>`
+                : '';
+            return `
+                <div style="text-align:center;font-weight:bold;font-size:15px;">${escapeHtml(getBusinessName())}</div>
+                <div style="text-align:center;font-size:11px;">${o.edited ? 'DÜZELTİLMİŞ FİŞ' : 'SİPARİŞ FİŞİ'}</div>
+                ${o.status === 'cancelled' ? '<div style="text-align:center;font-weight:bold;border:2px solid #000;margin:6px 0;padding:2px;">*** İPTAL EDİLDİ ***</div>' : ''}
+                ${line}
+                <div style="display:flex;justify-content:space-between;"><span>Fiş No:</span><span>${escapeHtml(o.receiptNo || '-')}</span></div>
+                ${(o.edited && o.revisions && o.revisions.length) ? `<div style="display:flex;justify-content:space-between;"><span>Eski Fiş No:</span><span>${escapeHtml(o.revisions[o.revisions.length - 1].receiptNo || '-')}</span></div>` : ''}
+                <div style="display:flex;justify-content:space-between;"><span>Tarih:</span><span>${escapeHtml(o.date)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span>Saat:</span><span>${escapeHtml(o.time)}</span></div>
+                <div style="display:flex;justify-content:space-between;font-weight:bold;"><span>Masa:</span><span>${escapeHtml(o.table)}</span></div>
+                ${svc}
+                ${line}
+                ${rows}
+                ${line}
+                <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;"><span>TOPLAM</span><span>${formatMoney(o.total)}</span></div>
+                ${line}
+                <div style="text-align:center;font-size:11px;">${escapeHtml(getReceiptFooter())}</div>`;
+        }
+
+        let currentReceiptOrder = null;
+        function showReceipt(order) {
+            currentReceiptOrder = order;
+            document.getElementById('receiptPreview').innerHTML = buildReceiptInner(order);
+            document.getElementById('receiptModal').classList.remove('hidden');
+            refreshReceiptPrinterSelect();
+        }
+        function showReceiptByIndex(i) { if (completedOrders[i]) showReceipt(completedOrders[i]); }
+        function closeReceipt() {
+            document.getElementById('receiptModal').classList.add('hidden');
+            currentReceiptOrder = null;
+        }
+
+        // ---- DÜZ METİN FİŞ (yazıcı / paylaşma için) ----
+        function wrapText(str, width) {
+            const words = String(str).split(/\s+/).filter(Boolean);
+            const lines = []; let cur = '';
+            words.forEach(w => {
+                while (w.length > width) {                 // çok uzun kelimeyi böl
+                    if (cur) { lines.push(cur); cur = ''; }
+                    lines.push(w.slice(0, width)); w = w.slice(width);
+                }
+                if (!cur) cur = w;
+                else if ((cur + ' ' + w).length <= width) cur += ' ' + w;
+                else { lines.push(cur); cur = w; }
+            });
+            if (cur) lines.push(cur);
+            return lines.length ? lines : [''];
+        }
+
+        // W: satır genişliği (58mm=32, 80mm=48), forPrinter: ₺ yerine TL
+        function buildReceiptText(o, W, forPrinter) {
+            W = W || 32;
+            const money = n => forPrinter ? Number(n).toFixed(2) + ' TL' : formatMoney(n);
+            const sep = '-'.repeat(W);
+            const center = t => { t = String(t); return ' '.repeat(Math.max(0, Math.floor((W - t.length) / 2))) + t; };
+            const row = (l, r) => {
+                l = String(l); r = String(r);
+                if (l.length + r.length + 1 <= W) return [l + ' '.repeat(W - l.length - r.length) + r];
+                const ls = wrapText(l, Math.max(8, W - r.length - 1));
+                const last = ls.pop();
+                ls.push(last + ' '.repeat(Math.max(1, W - last.length - r.length)) + r);
+                return ls;
+            };
+            const out = [];
+            wrapText(getBusinessName(), W).forEach(l => out.push(center(l)));
+            out.push(center(o.edited ? 'DÜZELTİLMİŞ FİŞ' : 'SİPARİŞ FİŞİ'));
+            if (o.status === 'cancelled') out.push(center('*** İPTAL EDİLDİ ***'));
+            out.push(sep);
+            out.push(...row('Fiş No:', o.receiptNo || '-'));
+            if (o.edited && o.revisions && o.revisions.length) out.push(...row('Eski Fiş No:', o.revisions[o.revisions.length - 1].receiptNo || '-'));
+            out.push(...row('Tarih:', o.date), ...row('Saat:', o.time), ...row('Masa:', o.table));
+            if (o.service) out.push(...row('Servis:', String(o.service).toLocaleUpperCase('tr')));
+            out.push(sep);
+            (o.cartItems || []).forEach(i => {
+                out.push(...row(i.qty + ' x ' + i.name, money(i.price * i.qty)));
+                (i.options || []).forEach(op => {
+                    wrapText('+ ' + optText(op), W - 3).forEach(l => out.push('   ' + l));
+                });
+            });
+            out.push(sep, ...row('TOPLAM', money(o.total)), sep);
+            wrapText(getReceiptFooter(), W).forEach(l => out.push(center(l)));
+            return out.join('\n');
+        }
+
+        function isAndroidWebView() { return /\bwv\b|; wv\)/.test(navigator.userAgent); }
+
+        // ---- YAZICI YÖNETİMİ ----
+        let printers = JSON.parse(localStorage.getItem('cg_printers')) || [];
+        function savePrinters() { localStorage.setItem('cg_printers', JSON.stringify(printers)); }
+        function getDefaultPrinter() { return printers.find(p => p.isDefault) || printers[0] || null; }
+        function isNativeApp() {
+            return !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+        }
+        function nativePrinter() {
+            return (isNativeApp() && window.Capacitor.Plugins && window.Capacitor.Plugins.CgPrinter) || null;
+        }
+        function printerAddr(p) { return p.type === 'bt' ? p.address : (p.host + ':' + p.port); }
+        function paperCols(p) { return Number(p.paper) === 58 ? 32 : 48; }
+
+        async function sendToPrinter(cfg, text) {
+            const plg = nativePrinter();
+            if (!plg) throw new Error('Doğrudan yazıcı bağlantısı yalnızca CepGarson Android uygulamasında çalışır.');
+            await plg.print({
+                type: cfg.type, host: cfg.host || '', port: Number(cfg.port) || 9100, address: cfg.address || '',
+                text: text, charset: cfg.charset || 'cp857', codePage: Number(cfg.codePage) || 13, cut: true
+            });
+        }
+
+        function buildTestText(cfg) {
+            const W = paperCols(cfg);
+            const c = t => ' '.repeat(Math.max(0, Math.floor((W - t.length) / 2))) + t;
+            return [c(getBusinessName()), c('YAZICI TEST FİŞİ'), '-'.repeat(W),
+                'Yazıcı : ' + (cfg.name || '-'), 'Bağlantı: ' + (cfg.type === 'bt' ? 'Bluetooth' : 'Wi-Fi/Ağ'),
+                'Tarih : ' + localDateStr() + ' ' + localTimeStr(), '-'.repeat(W),
+                'Türkçe karakter testi:', 'çÇ ğĞ ıİ öÖ şŞ üÜ', 'Fiyat: 125.50 TL', '-'.repeat(W),
+                c('Yazıcı çalışıyor')].join('\n');
+        }
+
+        function renderPrinters() {
+            const box = document.getElementById('printerList');
+            if (!box) return;
+            let html = '';
+            if (!printers.length) {
+                html += '<div class="bg-slate-950 border border-dashed border-slate-700 rounded-2xl p-6 text-center text-xs text-slate-400"><i class="fa-solid fa-print text-2xl text-slate-600 mb-2 block"></i>Henüz yazıcı eklenmedi.<br>Yukarıdaki <b>Yazıcı Ekle</b> düğmesiyle başlayın.</div>';
+            }
+            printers.forEach(pr => {
+                const def = getDefaultPrinter();
+                const isDef = def && def.id === pr.id;
+                html += `<div class="bg-slate-950 border ${isDef ? 'border-brand-500/60' : 'border-slate-800'} rounded-2xl p-4 space-y-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <div class="font-bold text-sm flex items-center gap-2 flex-wrap">${escapeHtml(pr.name)}
+                                ${isDef ? '<span class="text-[10px] bg-brand-500/20 text-brand-500 px-2 py-0.5 rounded-md font-semibold">Varsayılan</span>' : ''}</div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">
+                                <i class="fa-solid ${pr.type === 'bt' ? 'fa-bluetooth-b' : 'fa-wifi'} mr-1"></i>${pr.type === 'bt' ? 'Bluetooth' : 'Wi-Fi / Ağ'} · ${escapeHtml(printerAddr(pr))} · ${pr.paper} mm
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        ${isDef ? '' : `<button onclick="setDefaultPrinter('${pr.id}')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-[11px] font-semibold text-slate-200">Varsayılan Yap</button>`}
+                        <button onclick="testSavedPrinter('${pr.id}')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-[11px] font-semibold text-slate-200"><i class="fa-solid fa-vial mr-1"></i>Test Fişi</button>
+                        <button onclick="deletePrinter('${pr.id}')" class="px-3 py-2 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white rounded-xl text-[11px] font-semibold"><i class="fa-solid fa-trash mr-1"></i>Sil</button>
+                    </div>
+                </div>`;
+            });
+            if (!isNativeApp()) {
+                html += '<p class="text-[11px] text-amber-400/80"><i class="fa-solid fa-circle-info mr-1"></i>Doğrudan yazdırma yalnızca Android uygulamasında (APK) çalışır; tarayıcıda yazıcı eklenebilir ama yazdırılamaz.</p>';
+            }
+            box.innerHTML = html;
+        }
+
+        function setDefaultPrinter(id) {
+            printers.forEach(p => { p.isDefault = (p.id === id); });
+            savePrinters(); renderPrinters();
+        }
+        function deletePrinter(id) {
+            const p = printers.find(x => x.id === id);
+            if (!p || !confirm('"' + p.name + '" yazıcısı silinsin mi?')) return;
+            printers = printers.filter(x => x.id !== id);
+            if (printers.length && !printers.some(x => x.isDefault)) printers[0].isDefault = true;
+            savePrinters(); renderPrinters();
+        }
+        async function testSavedPrinter(id) {
+            const p = printers.find(x => x.id === id); if (!p) return;
+            try { toast('Test fişi gönderiliyor…'); await sendToPrinter(p, buildTestText(p)); toast('Test fişi gönderildi ✓'); }
+            catch (e) { toast(errMsg(e), true); }
+        }
+        function errMsg(e) { return (e && (e.message || e.errorMessage)) ? (e.message || e.errorMessage) : String(e); }
+
+        // ---- Yazıcı ekleme penceresi ----
+        let printerFormType = 'wifi';
+        function setPrinterType(t) {
+            printerFormType = t;
+            const on = 'py-2.5 rounded-xl text-xs font-semibold transition bg-brand-600 text-white';
+            const off = 'py-2.5 rounded-xl text-xs font-semibold transition bg-slate-950 border border-slate-800 text-slate-300';
+            document.getElementById('ptypeWifi').className = t === 'wifi' ? on : off;
+            document.getElementById('ptypeBt').className = t === 'bt' ? on : off;
+            document.getElementById('pWifiPanel').classList.toggle('hidden', t !== 'wifi');
+            document.getElementById('pBtPanel').classList.toggle('hidden', t !== 'bt');
+        }
+        function openPrinterModal() {
+            ['pName', 'pHost', 'pAddress'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('pPort').value = '9100';
+            document.getElementById('pPaper').value = '80';
+            document.getElementById('pCharset').value = 'cp857';
+            document.getElementById('pCodePage').value = '13';
+            document.getElementById('pFoundHosts').innerHTML = '';
+            document.getElementById('pBtDevices').innerHTML = '';
+            setPrinterType('wifi');
+            document.getElementById('printerModal').classList.remove('hidden');
+        }
+        function closePrinterModal() {
+            stopPrinterQrScan();
+            document.getElementById('printerModal').classList.add('hidden');
+        }
+
+        function validIPv4(h) {
+            const m = String(h).match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+            return !!m && m.slice(1).every(x => +x >= 0 && +x <= 255);
+        }
+        function validHost(h) { return validIPv4(h) || /^[A-Za-z0-9]([A-Za-z0-9\-.]*[A-Za-z0-9])?$/.test(h); }
+        function normMac(m) { return String(m).trim().toUpperCase().replace(/-/g, ':'); }
+        function validMac(m) { return /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(normMac(m)); }
+
+        function readPrinterForm() {
+            const type = printerFormType;
+            const cfg = {
+                id: 'pr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                name: document.getElementById('pName').value.trim(),
+                type: type,
+                host: document.getElementById('pHost').value.trim(),
+                port: parseInt(document.getElementById('pPort').value, 10) || 9100,
+                address: normMac(document.getElementById('pAddress').value),
+                paper: parseInt(document.getElementById('pPaper').value, 10) === 58 ? 58 : 80,
+                charset: document.getElementById('pCharset').value === 'ascii' ? 'ascii' : 'cp857',
+                codePage: parseInt(document.getElementById('pCodePage').value, 10) || 13,
+                isDefault: false
+            };
+            if (!cfg.name) cfg.name = type === 'bt' ? 'Bluetooth Yazıcı' : 'Ağ Yazıcısı';
+            if (type === 'wifi') {
+                if (!cfg.host) return { error: 'Yazıcının IP adresini girin (örn: 192.168.1.50).' };
+                if (!validHost(cfg.host)) return { error: 'IP adresi geçersiz.' };
+                if (cfg.port < 1 || cfg.port > 65535) return { error: 'Port 1-65535 arasında olmalı.' };
+            } else {
+                if (!validMac(cfg.address)) return { error: 'Bluetooth adresi geçersiz. Listeden seçin ya da AA:BB:CC:DD:EE:FF biçiminde girin.' };
+            }
+            return { cfg: cfg };
+        }
+
+        async function testPrinterFromForm() {
+            const r = readPrinterForm();
+            if (r.error) return toast(r.error, true);
+            try { toast('Test fişi gönderiliyor…'); await sendToPrinter(r.cfg, buildTestText(r.cfg)); toast('Test fişi gönderildi ✓'); }
+            catch (e) { toast(errMsg(e), true); }
+        }
+
+        function savePrinter() {
+            const r = readPrinterForm();
+            if (r.error) return toast(r.error, true);
+            const cfg = r.cfg;
+            const dup = printers.find(p => p.type === cfg.type && (cfg.type === 'bt' ? p.address === cfg.address : (p.host === cfg.host && Number(p.port) === cfg.port)));
+            if (dup) return toast('Bu yazıcı zaten ekli: ' + dup.name, true);
+            if (!printers.length) cfg.isDefault = true;
+            printers.push(cfg);
+            savePrinters();
+            closePrinterModal();
+            renderPrinters();
+            toast('Yazıcı eklendi ✓');
+        }
+
+        async function scanNetworkPrinters() {
+            const plg = nativePrinter();
+            const box = document.getElementById('pFoundHosts');
+            if (!plg) return toast('Ağ taraması yalnızca Android uygulamasında çalışır. IP adresini elle girin.', true);
+            const btn = document.getElementById('pScanNetBtn');
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Aranıyor…';
+            box.innerHTML = '';
+            try {
+                const res = await plg.scanNetwork({ port: Number(document.getElementById('pPort').value) || 9100 });
+                const hosts = res.hosts || [];
+                if (!hosts.length) box.innerHTML = '<p class="text-[11px] text-slate-500">Bu ağda yazıcı bulunamadı. Telefonun yazıcıyla aynı Wi-Fi\'de olduğundan emin olun ya da IP\'yi elle girin.</p>';
+                hosts.forEach(h => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'w-full text-left px-3 py-2 bg-slate-950 border border-slate-800 hover:border-brand-500 rounded-xl text-xs';
+                    b.innerHTML = '<i class="fa-solid fa-print text-brand-500 mr-2"></i>' + escapeHtml(h) + ' <span class="text-slate-500">— seç</span>';
+                    b.onclick = () => { document.getElementById('pHost').value = h; toast(h + ' seçildi'); };
+                    box.appendChild(b);
+                });
+            } catch (e) { toast(errMsg(e), true); }
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-magnifying-glass mr-1"></i> Ağda Yazıcı Ara';
+        }
+
+        async function loadBluetoothPrinters() {
+            const plg = nativePrinter();
+            const box = document.getElementById('pBtDevices');
+            if (!plg) return toast('Bluetooth yalnızca Android uygulamasında çalışır. Adresi elle girin.', true);
+            box.innerHTML = '';
+            try {
+                const res = await plg.listBluetooth();
+                const devs = res.devices || [];
+                if (!devs.length) box.innerHTML = '<p class="text-[11px] text-slate-500">Eşleşmiş cihaz yok. Önce yazıcıyı telefonun Bluetooth ayarlarından eşleştirin.</p>';
+                devs.forEach(d => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'w-full text-left px-3 py-2 bg-slate-950 border border-slate-800 hover:border-brand-500 rounded-xl text-xs';
+                    b.innerHTML = '<i class="fa-brands fa-bluetooth-b text-brand-500 mr-2"></i>' + escapeHtml(d.name) + ' <span class="text-slate-500">' + escapeHtml(d.address) + '</span>';
+                    b.onclick = () => {
+                        document.getElementById('pAddress').value = d.address;
+                        if (!document.getElementById('pName').value.trim()) document.getElementById('pName').value = d.name;
+                        toast(d.name + ' seçildi');
+                    };
+                    box.appendChild(b);
+                });
+            } catch (e) { toast(errMsg(e), true); }
+        }
+
+        // ---- Yazıcı QR kodu ----
+        // Desteklenen QR içerikleri: 192.168.1.50:9100 · tcp://192.168.1.50:9100 · http://192.168.1.50
+        // · AA:BB:CC:DD:EE:FF · bt://AA:BB:CC:DD:EE:FF · {"name":"Mutfak","ip":"192.168.1.50","port":9100}
+        function parsePrinterQR(raw) {
+            const t = String(raw || '').trim();
+            if (!t) return null;
+            const MAC = /^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$/;
+            const bt = (mac, name) => ({ type: 'bt', name: name || '', address: String(mac).toUpperCase().replace(/-/g, ':') });
+            const wifi = (host, port, name) => ({ type: 'wifi', name: name || '', host: host, port: Number(port) || 9100 });
+            if (t[0] === '{') {
+                try {
+                    const j = JSON.parse(t);
+                    const mac = j.mac || j.address || j.bt;
+                    const host = j.host || j.ip;
+                    if (mac && MAC.test(String(mac))) return bt(mac, j.name);
+                    if (host && validHost(String(host))) return wifi(String(host), j.port, j.name);
+                } catch (e) { /* düz metin değil */ }
+                return null;
+            }
+            let m = t.match(/^(?:bt|bluetooth|mac)[:\/]*\s*([0-9A-Fa-f:\-]{17})$/i);
+            if (m && MAC.test(m[1])) return bt(m[1]);
+            if (MAC.test(t)) return bt(t);
+            m = t.match(/^(?:tcp|raw|socket|ip|printer):\/\/([^\/:\s]+)(?::(\d{1,5}))?\/?$/i);
+            if (m && validHost(m[1])) return wifi(m[1], m[2]);
+            m = t.match(/^https?:\/\/([^\/:\s]+)(?::\d+)?(?:\/.*)?$/i);
+            if (m && validHost(m[1])) return wifi(m[1], 9100);
+            m = t.match(/^([A-Za-z0-9.\-]+)(?::(\d{1,5}))?$/);
+            if (m && (validIPv4(m[1]) || m[2]) && validHost(m[1])) return wifi(m[1], m[2]);
+            return null;
+        }
+
+        let pScanStream = null, pScanActive = false, pBadCode = '', pBadTime = 0;
+        function setPrinterScanStatus(msg, err) {
+            const el = document.getElementById('printerScanStatus');
+            el.textContent = msg;
+            el.className = 'text-xs font-semibold ' + (err ? 'text-red-400' : 'text-emerald-400');
+        }
+
+        async function startPrinterQrScan() {
+            const modal = document.getElementById('printerScanModal');
+            modal.classList.remove('hidden');
+            if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                return setPrinterScanStatus('Kamera kullanılamıyor. Yazıcı bilgilerini elle girin.', true);
+            }
+            if (typeof window.jsQR !== 'function') {
+                return setPrinterScanStatus('QR okuma bileşeni yüklenemedi (internet gerekli). Elle girin.', true);
+            }
+            setPrinterScanStatus('Kamera izni bekleniyor…');
+            try {
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+                } catch (e1) {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+                }
+                if (modal.classList.contains('hidden')) { stream.getTracks().forEach(t => t.stop()); return; }
+                pScanStream = stream;
+                const video = document.getElementById('printerScanVideo');
+                video.srcObject = stream; video.muted = true;
+                await video.play();
+                pScanActive = true;
+                setPrinterScanStatus('QR kodu bekleniyor…');
+                requestAnimationFrame(printerScanTick);
+            } catch (err) {
+                pScanActive = false;
+                const denied = err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError');
+                setPrinterScanStatus((denied ? 'Kamera izni verilmedi.' : 'Kamera açılamadı.') + ' Elle girebilirsiniz.', true);
+            }
+        }
+
+        function stopPrinterQrScan() {
+            pScanActive = false;
+            if (pScanStream) { pScanStream.getTracks().forEach(t => t.stop()); pScanStream = null; }
+            const v = document.getElementById('printerScanVideo'); if (v) v.srcObject = null;
+            const m = document.getElementById('printerScanModal'); if (m) m.classList.add('hidden');
+        }
+
+        function printerScanTick() {
+            if (!pScanActive) return;
+            const video = document.getElementById('printerScanVideo');
+            const canvas = document.getElementById('printerScanCanvas');
+            try {
+                if (video.readyState >= 2 && video.videoWidth > 0) {
+                    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+                    if (code && code.data && code.data.trim()) {
+                        const raw = code.data.trim();
+                        const parsed = parsePrinterQR(raw);
+                        if (parsed) {
+                            stopPrinterQrScan();
+                            applyScannedPrinter(parsed);
+                            return;
+                        }
+                        if (!(raw === pBadCode && Date.now() - pBadTime < 3000)) {
+                            pBadCode = raw; pBadTime = Date.now();
+                            setPrinterScanStatus('Bu QR yazıcı bilgisi içermiyor: ' + raw.slice(0, 40), true);
+                        }
+                    }
+                }
+            } catch (e) { console.error('Yazıcı QR hatası:', e); }
+            requestAnimationFrame(printerScanTick);
+        }
+
+        function applyScannedPrinter(pr) {
+            setPrinterType(pr.type);
+            if (pr.name) document.getElementById('pName').value = pr.name;
+            if (pr.type === 'bt') document.getElementById('pAddress').value = pr.address;
+            else { document.getElementById('pHost').value = pr.host; document.getElementById('pPort').value = pr.port; }
+            toast('QR okundu ✓ Bilgileri kontrol edip Kaydet\'e basın');
+        }
+
+        // ---- Fiş penceresindeki yazıcı seçimi ----
+        function refreshReceiptPrinterSelect() {
+            const sel = document.getElementById('receiptPrinterSelect');
+            if (!sel) return;
+            const def = getDefaultPrinter();
+            let html = '';
+            printers.forEach(p => {
+                html += `<option value="${p.id}" ${def && def.id === p.id ? 'selected' : ''}>${escapeHtml(p.name)} (${p.type === 'bt' ? 'Bluetooth' : 'Wi-Fi'})</option>`;
+            });
+            html += `<option value="system" ${printers.length ? '' : 'selected'}>Sistem yazdırma menüsü / Paylaş</option>`;
+            sel.innerHTML = html;
+        }
+
+        function goToPrintersTab() {
+            closeReceipt();
+            if (!document.getElementById('sellerPanel').classList.contains('hidden')) switchSellerTab('printersTab');
+        }
+
+        // Yazıcı seçilmemişse: Android sistem yazdırma / paylaş / tarayıcı yazdırma
+        async function systemPrintFlow(o) {
+            const plg = nativePrinter();
+            if (plg && typeof plg.systemPrint === 'function') {
+                const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><style>'
+                    + 'body{margin:0;padding:8px;font-family:"Courier New",monospace;font-size:12px;line-height:1.45;color:#000;background:#fff;}'
+                    + '</style></head><body>' + buildReceiptInner(o) + '</body></html>';
+                try { await plg.systemPrint({ html: html, jobName: 'Fis-' + (o.receiptNo || '') }); return; }
+                catch (e) { console.error('Sistem yazdırma hatası:', e); }
+            }
+            if (isAndroidWebView()) { shareReceiptFallback(o); return; }
+
+            let area = document.getElementById('printArea');
+            if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
+            area.innerHTML = buildReceiptInner(o);
+            const cleanup = () => { area.innerHTML = ''; window.removeEventListener('afterprint', cleanup); };
+            window.addEventListener('afterprint', cleanup);
+            try { window.print(); } catch (e) { cleanup(); shareReceiptFallback(o); }
+        }
+
+        async function shareReceiptFallback(o) {
+            const text = buildReceiptText(o, 32, false);
+            try {
+                if (navigator.share) { await navigator.share({ title: 'Fiş ' + (o.receiptNo || ''), text }); return; }
+            } catch (e) { if (e && e.name === 'AbortError') return; }
+            try {
+                await navigator.clipboard.writeText(text);
+                alert('Fiş metni panoya kopyalandı. Bir yazdırma / mesaj uygulamasına yapıştırabilirsiniz.\n\nKalıcı çözüm için: Yönetici Paneli → Yazıcı → Yazıcı Ekle.');
+            } catch (e) {
+                alert('Fiş:\n\n' + text);
+            }
+        }
+
+        async function printReceipt() {
+            const o = currentReceiptOrder;
+            if (!o) return;
+            const sel = document.getElementById('receiptPrinterSelect');
+            const choice = sel ? sel.value : 'system';
+            const cfg = (choice && choice !== 'system') ? printers.find(p => p.id === choice) : null;
+            if (cfg) {
+                try {
+                    toast('Fiş yazıcıya gönderiliyor…');
+                    await sendToPrinter(cfg, buildReceiptText(o, paperCols(cfg), true));
+                    toast('Fiş yazdırıldı ✓');
+                } catch (e) {
+                    toast('Yazdırılamadı: ' + errMsg(e), true);
+                }
+                return;
+            }
+            systemPrintFlow(o);
+        }
+
+        function completeOrder(idx) {
+            const today = localDateStr();
+            if (isDayLocked(today)) {
+                alert('Bugünün gün sonu alınmış. Satışı tamamlamak için önce Gün Sonu sayfasından "Günü Yeniden Aç" yapın.');
+                return;
+            }
+            let completed = orders[idx];
+            if (!completed) return;
+            if (completed.date !== today) {
+                // Sipariş önceki gün verilmiş, bugün tamamlanıyor: satış tamamlandığı güne yazılır
+                const nowD = new Date();
+                completed.originalDate = completed.date;
+                completed.originalTime = completed.time;
+                completed.date = today; completed.time = localTimeStr(nowD); completed.ts = nowD.getTime();
+            }
+            orders.splice(idx, 1);
+            completed.receiptNo = nextReceiptNo();
+            completedOrders.push(completed);
+            localStorage.setItem('cg_orders', JSON.stringify(orders));
+            localStorage.setItem('cg_completed_orders', JSON.stringify(completedOrders));
+            renderOrders();
+            renderReport();
+            showReceipt(completed);
+        }
+
+        function saveReceiptSettings() {
+            localStorage.setItem('cg_business_name', document.getElementById('businessNameInput').value.trim() || 'CepGarson');
+            localStorage.setItem('cg_receipt_footer', document.getElementById('receiptFooterInput').value.trim() || 'Afiyet olsun!');
+            alert('Fiş ayarları kaydedildi.');
+        }
+        function loadReceiptSettings() {
+            document.getElementById('businessNameInput').value = getBusinessName();
+            document.getElementById('receiptFooterInput').value = getReceiptFooter();
+        }
+
+        // ================== GÜN SONU, İPTAL, DÜZENLEME ==================
+        let closures = JSON.parse(localStorage.getItem('cg_closures')) || [];
+        let auditLog = JSON.parse(localStorage.getItem('cg_audit')) || [];
+        function saveClosures() { localStorage.setItem('cg_closures', JSON.stringify(closures)); }
+        function saveCompleted() { localStorage.setItem('cg_completed_orders', JSON.stringify(completedOrders)); }
+        function fmtDate(d) { const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (m[3] + '.' + m[2] + '.' + m[1]) : d; }
+
+        function logAudit(type, text, forDate) {
+            const now = new Date();
+            auditLog.push({ ts: now.getTime(), date: localDateStr(now), time: localTimeStr(now), type: type, text: text, forDate: forDate || '', by: (adminData && adminData.user) || '' });
+            if (auditLog.length > 1000) auditLog = auditLog.slice(-1000);
+            localStorage.setItem('cg_audit', JSON.stringify(auditLog));
+        }
+
+        function activeClosure(date) { return closures.find(c => c.date === date && c.status === 'active') || null; }
+        function isDayLocked(date) { return !!activeClosure(date); }
+        function nextClosureNo() {
+            const n = (parseInt(localStorage.getItem('cg_closure_counter')) || 0) + 1;
+            localStorage.setItem('cg_closure_counter', String(n));
+            return String(n).padStart(4, '0');
+        }
+
+        function dayStats(date) {
+            const all = completedOrders.filter(o => o.date === date);
+            const act = all.filter(o => o.status !== 'cancelled');
+            const can = all.filter(o => o.status === 'cancelled');
+            const counts = {};
+            act.forEach(o => (o.cartItems || []).forEach(i => { counts[i.name] = (counts[i.name] || 0) + i.qty; }));
+            return {
+                count: act.length,
+                revenue: act.reduce((a, o) => a + Number(o.total), 0),
+                cancelledCount: can.length,
+                cancelledTotal: can.reduce((a, o) => a + Number(o.total), 0),
+                editedCount: act.filter(o => o.edited).length,
+                items: Object.keys(counts).map(n => ({ name: n, qty: counts[n] }))
+            };
+        }
+
+        // ---- Şifre / PIN ----
+        let authCb = null, authAdminOnly = false;
+        function actionSecretLabel() { return localStorage.getItem('cg_action_pin') ? 'İşlem PIN\'i' : 'Yönetici şifresi'; }
+        function checkActionSecret(v) {
+            const pin = localStorage.getItem('cg_action_pin');
+            return String(v) === (pin ? pin : String(adminData.pass));
+        }
+        function askAuth(title, cb, opts) {
+            authCb = cb;
+            authAdminOnly = !!(opts && opts.adminOnly);      // true: PIN değil, sadece yönetici şifresi kabul edilir
+            const label = authAdminOnly ? 'Yönetici şifresi' : actionSecretLabel();
+            document.getElementById('authTitle').textContent = title;
+            document.getElementById('authHint').textContent = label + ' girin';
+            const inp = document.getElementById('authInput');
+            inp.value = ''; inp.placeholder = label;
+            document.getElementById('authError').classList.add('hidden');
+            document.getElementById('authModal').classList.remove('hidden');
+            setTimeout(() => inp.focus(), 50);
+        }
+        function closeAuth() { document.getElementById('authModal').classList.add('hidden'); authCb = null; }
+        function submitAuth() {
+            const inp = document.getElementById('authInput');
+            const ok = authAdminOnly ? (String(inp.value) === String(adminData.pass)) : checkActionSecret(inp.value);
+            if (!ok) {
+                document.getElementById('authError').classList.remove('hidden');
+                inp.value = ''; inp.focus();
+                return;
+            }
+            const cb = authCb;
+            closeAuth();
+            if (cb) cb();
+        }
+        // ---- İşlem PIN'i yönetimi (yönetici şifresiyle korunur) ----
+        let pinMode = 'locked';      // 'locked' | 'form' | 'display'
+        let pinJustSaved = false;
+        function getActionPin() { return localStorage.getItem('cg_action_pin') || ''; }
+
+        function resetPinEyes() {
+            [['pinInput1', 'pinEye1'], ['pinInput2', 'pinEye2']].forEach(([i, b]) => {
+                const inp = document.getElementById(i), btn = document.getElementById(b);
+                if (!inp || !btn) return;
+                inp.type = 'password';
+                btn.title = 'Şifre göster';
+                btn.innerHTML = '<i class="fa-solid fa-eye"></i><span>Şifre göster</span>';
+            });
+        }
+        function togglePinEye(inputId, btnId) {
+            const inp = document.getElementById(inputId), btn = document.getElementById(btnId);
+            const show = inp.type === 'password';
+            inp.type = show ? 'text' : 'password';
+            btn.title = show ? 'Şifre gizle' : 'Şifre göster';
+            btn.innerHTML = show ? '<i class="fa-solid fa-eye-slash"></i><span>Şifre gizle</span>' : '<i class="fa-solid fa-eye"></i><span>Şifre göster</span>';
+        }
+        function setPinMsg(text) {
+            const m = document.getElementById('pinMsg');
+            if (!text) { m.classList.add('hidden'); m.textContent = ''; return; }
+            m.textContent = text; m.classList.remove('hidden');
+        }
+
+        function renderPinSection() {
+            const show = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !on); };
+            show('pinLocked', pinMode === 'locked');
+            show('pinFormView', pinMode === 'form');
+            show('pinDisplayView', pinMode === 'display');
+            const pin = getActionPin();
+            const st = document.getElementById('pinStatusLine');
+            if (st) st.textContent = pin ? 'PIN tanımlı. İşlemlerde PIN sorulur.' : 'PIN tanımlı değil. İşlemlerde yönetici şifresi sorulur.';
+            if (pinMode === 'form') {
+                show('pinCancelBtn', !!pin);
+            }
+            if (pinMode === 'display') {
+                show('pinSavedMsg', pinJustSaved);
+                document.getElementById('pinShown').textContent = pin;
+                const q = document.getElementById('pinQr');
+                q.innerHTML = '';
+                if (typeof QRCode === 'function') {
+                    new QRCode(q, { text: String(pin), width: 140, height: 140, correctLevel: QRCode.CorrectLevel.M });
+                } else {
+                    q.innerHTML = '<span class="text-xs text-slate-600 block p-6">QR için internet gerekli</span>';
+                }
+            }
+        }
+
+        function unlockPinSection() {
+            askAuth('PIN ayarları', () => {
+                pinJustSaved = false;
+                if (getActionPin()) pinMode = 'display';
+                else { pinMode = 'form'; document.getElementById('pinInput1').value = ''; document.getElementById('pinInput2').value = ''; setPinMsg(''); resetPinEyes(); }
+                renderPinSection();
+            }, { adminOnly: true });
+        }
+        function lockPinSection() {
+            pinMode = 'locked'; pinJustSaved = false;
+            const a = document.getElementById('pinInput1'), b = document.getElementById('pinInput2');
+            if (a) a.value = ''; if (b) b.value = '';
+            const q = document.getElementById('pinQr'); if (q) q.innerHTML = '';
+            const sh = document.getElementById('pinShown'); if (sh) sh.textContent = '';
+            if (document.getElementById('pinLocked')) { setPinMsg(''); resetPinEyes(); renderPinSection(); }
+        }
+        function editPin() {
+            pinMode = 'form'; pinJustSaved = false;
+            document.getElementById('pinInput1').value = getActionPin();
+            document.getElementById('pinInput2').value = getActionPin();
+            setPinMsg(''); resetPinEyes();
+            renderPinSection();
+        }
+        function cancelPinEdit() {
+            pinMode = 'display'; pinJustSaved = false;
+            document.getElementById('pinInput1').value = ''; document.getElementById('pinInput2').value = '';
+            setPinMsg(''); resetPinEyes();
+            renderPinSection();
+        }
+        function submitPinForm() {
+            const v1 = document.getElementById('pinInput1').value;
+            const v2 = document.getElementById('pinInput2').value;
+            if (!v1 && !v2) return setPinMsg('PIN boş olamaz.');
+            if (v1 !== v2) return setPinMsg('Şifreler uyuşmuyor.');
+            if (!/^\d{4,8}$/.test(v1)) return setPinMsg('PIN 4 ile 8 haneli rakamlardan oluşmalıdır.');
+            localStorage.setItem('cg_action_pin', v1);
+            logAudit('pin', 'İşlem PIN\'i güncellendi');
+            document.getElementById('pinInput1').value = ''; document.getElementById('pinInput2').value = '';
+            setPinMsg(''); resetPinEyes();
+            pinJustSaved = true; pinMode = 'display';
+            renderPinSection();
+        }
+
+        // ---- Satışı iptal et ----
+        let cancelIdx = -1;
+        function openCancelSale(i) {
+            const o = completedOrders[i];
+            if (!o || o.status === 'cancelled') return;
+            if (isDayLocked(o.date)) return toast('Bu günün gün sonu alınmış. Önce günü yeniden açın.', true);
+            cancelIdx = i;
+            document.getElementById('cancelSaleInfo').innerHTML =
+                `<div class="flex justify-between"><span class="text-slate-400">Fiş No</span><b>${escapeHtml(o.receiptNo || '-')}</b></div>
+                 <div class="flex justify-between"><span class="text-slate-400">Masa</span><b>${escapeHtml(o.table)}</b></div>
+                 <div class="flex justify-between"><span class="text-slate-400">Saat</span><b>${escapeHtml(o.time)}</b></div>
+                 <div class="flex justify-between"><span class="text-slate-400">Tutar</span><b class="text-brand-500">${Number(o.total).toFixed(2)} ₺</b></div>`;
+            document.getElementById('cancelReason').value = '';
+            document.getElementById('cancelSaleModal').classList.remove('hidden');
+        }
+        function closeCancelSale() { document.getElementById('cancelSaleModal').classList.add('hidden'); cancelIdx = -1; }
+        function setCancelReason(t) { document.getElementById('cancelReason').value = t; }
+        function submitCancelSale() {
+            const reason = document.getElementById('cancelReason').value.trim();
+            if (!reason) return toast('Lütfen iptal nedenini yazın.', true);
+            const idx = cancelIdx;
+            askAuth('Satış iptali', () => applyCancelSale(idx, reason));
+        }
+        function applyCancelSale(idx, reason) {
+            const o = completedOrders[idx];
+            if (!o || o.status === 'cancelled' || isDayLocked(o.date)) return toast('İşlem yapılamadı: satış kilitli veya zaten iptal.', true);
+            const now = new Date();
+            o.status = 'cancelled';
+            o.cancel = { ts: now.getTime(), date: localDateStr(now), time: localTimeStr(now), reason: reason, by: adminData.user };
+            saveCompleted();
+            logAudit('iptal', 'Satış iptal edildi: Fiş ' + (o.receiptNo || '-') + ', Masa ' + o.table + ', ' + Number(o.total).toFixed(2) + ' ₺ — Neden: ' + reason, o.date);
+            closeCancelSale();
+            renderReport();
+            toast('Satış iptal edildi ✓ (cirodan düşüldü)');
+        }
+
+        // ---- Satışı düzenle (sadece eksiltme) ----
+        let editCtx = null; // { idx, orig:[qty], qty:[qty] }
+        function openEditSale(i) {
+            const o = completedOrders[i];
+            if (!o || o.status === 'cancelled') return;
+            if (isDayLocked(o.date)) return toast('Bu günün gün sonu alınmış. Önce günü yeniden açın.', true);
+            editCtx = { idx: i, orig: o.cartItems.map(c => c.qty), qty: o.cartItems.map(c => c.qty) };
+            document.getElementById('editSaleNo').textContent = '(Fiş ' + (o.receiptNo || '-') + ')';
+            document.getElementById('editReason').value = '';
+            renderEditSale();
+            document.getElementById('editSaleModal').classList.remove('hidden');
+        }
+        function closeEditSale() { document.getElementById('editSaleModal').classList.add('hidden'); editCtx = null; }
+        function editTotal(arr) {
+            const o = completedOrders[editCtx.idx];
+            return o.cartItems.reduce((a, c, k) => a + c.price * arr[k], 0);
+        }
+        function renderEditSale() {
+            if (!editCtx) return;
+            const o = completedOrders[editCtx.idx];
+            const box = document.getElementById('editSaleLines');
+            box.innerHTML = '';
+            o.cartItems.forEach((c, k) => {
+                const q = editCtx.qty[k];
+                const row = document.createElement('div');
+                row.className = 'bg-slate-950 border border-slate-800 rounded-2xl p-3 flex items-center gap-3 ' + (q === 0 ? 'opacity-50' : '');
+                const info = document.createElement('div');
+                info.className = 'flex-1 min-w-0';
+                const nm = document.createElement('div');
+                nm.className = 'font-bold text-sm ' + (q === 0 ? 'line-through' : ''); nm.textContent = c.name;
+                info.appendChild(nm);
+                (c.options || []).forEach(op => {
+                    const d = document.createElement('div');
+                    d.className = 'text-[11px] text-slate-400'; d.textContent = '+ ' + optText(op);
+                    info.appendChild(d);
+                });
+                const pr = document.createElement('div');
+                pr.className = 'text-xs font-bold text-brand-500 mt-1';
+                pr.textContent = (c.price * q).toFixed(2) + ' ₺';
+                info.appendChild(pr);
+                const ctr = document.createElement('div');
+                ctr.className = 'flex items-center gap-2';
+                ctr.innerHTML = `<button onclick="editQty(${k}, -1)" ${q <= 0 ? 'disabled' : ''} class="bg-slate-800 text-slate-200 w-8 h-8 rounded-xl flex items-center justify-center text-sm ${q <= 0 ? 'opacity-30' : ''}"><i class="fa-solid fa-minus"></i></button>
+                    <span class="text-xs font-bold w-5 text-center">${q}</span>
+                    <button onclick="editQty(${k}, 1)" ${q >= editCtx.orig[k] ? 'disabled' : ''} class="bg-slate-800 text-slate-200 w-8 h-8 rounded-xl flex items-center justify-center text-sm ${q >= editCtx.orig[k] ? 'opacity-30' : ''}"><i class="fa-solid fa-plus"></i></button>`;
+                row.append(info, ctr);
+                box.appendChild(row);
+            });
+            document.getElementById('editOldTotal').textContent = Number(o.total).toFixed(2) + ' ₺';
+            document.getElementById('editNewTotal').textContent = editTotal(editCtx.qty).toFixed(2) + ' ₺';
+            const warn = document.getElementById('editSaleWarn');
+            if (editCtx.qty.every(q => q === 0)) {
+                warn.textContent = 'Tüm ürünler çıkarıldı. Bu durumda satışı düzenlemek yerine "İptal" edin.';
+                warn.classList.remove('hidden');
+            } else warn.classList.add('hidden');
+        }
+        function editQty(k, d) {
+            if (!editCtx) return;
+            const n = editCtx.qty[k] + d;
+            if (n < 0 || n > editCtx.orig[k]) return;      // sadece eksiltme: ilk adedin üstüne çıkılamaz
+            editCtx.qty[k] = n;
+            renderEditSale();
+        }
+        function saveEditSale() {
+            if (!editCtx) return;
+            if (editCtx.qty.every(q => q === 0)) return toast('Tüm ürünler çıkarılamaz; satışı iptal edin.', true);
+            if (editCtx.qty.every((q, k) => q === editCtx.orig[k])) return toast('Değişiklik yapılmadı.', true);
+            const idx = editCtx.idx, qty = editCtx.qty.slice(), reason = document.getElementById('editReason').value.trim();
+            askAuth('Satış düzenleme', () => applyEditSale(idx, qty, reason));
+        }
+        function applyEditSale(idx, qty, reason) {
+            const o = completedOrders[idx];
+            if (!o || o.status === 'cancelled' || isDayLocked(o.date)) return toast('İşlem yapılamadı: satış kilitli veya iptal.', true);
+            const now = new Date();
+            o.revisions = o.revisions || [];
+            o.revisions.push({ ts: now.getTime(), date: localDateStr(now), time: localTimeStr(now), receiptNo: o.receiptNo,
+                cartItems: JSON.parse(JSON.stringify(o.cartItems)), total: o.total, reason: reason, by: adminData.user });
+            const oldTotal = Number(o.total);
+            o.cartItems = o.cartItems.map((c, k) => Object.assign({}, c, { qty: qty[k] })).filter(c => c.qty > 0);
+            o.total = o.cartItems.reduce((a, c) => a + c.price * c.qty, 0);
+            o.edited = true;
+            o.receiptNo = nextReceiptNo();
+            saveCompleted();
+            logAudit('duzenle', 'Satış düzenlendi: Fiş ' + o.revisions[o.revisions.length - 1].receiptNo + ' → ' + o.receiptNo + ', ' + oldTotal.toFixed(2) + ' ₺ → ' + o.total.toFixed(2) + ' ₺' + (reason ? ' — ' + reason : ''), o.date);
+            closeEditSale();
+            renderReport();
+            showReceipt(o);
+            toast('Satış düzenlendi ✓ Düzeltilmiş fiş hazır');
+        }
+
+        // ---- Gün sonu: al / yeniden aç / otomatik ----
+        function createClosure(date, auto) {
+            if (activeClosure(date)) return null;
+            const now = new Date();
+            const c = {
+                no: nextClosureNo(), date: date, status: 'active', auto: !!auto,
+                closedAt: now.getTime(), closedDate: localDateStr(now), closedTime: localTimeStr(now),
+                stats: dayStats(date)
+            };
+            closures.push(c);
+            saveClosures();
+            logAudit(auto ? 'otomatik_gunsonu' : 'gunsonu', (auto ? 'Gün sonu OTOMATİK alındı' : 'Gün sonu alındı') + ': No ' + c.no + ' — ' + fmtDate(date) + ' — Ciro ' + c.stats.revenue.toFixed(2) + ' ₺', date);
+            return c;
+        }
+
+        function manualCloseDay() {
+            const date = document.getElementById('reportDateFilter').value;
+            if (!date) return;
+            if (isDayLocked(date)) return;
+            if (!completedOrders.some(o => o.date === date)) return alert('Bu tarihte kayıtlı satış yok; gün sonu alınacak bir şey yok.');
+            const pending = orders.filter(o => o.date === date).length;
+            let msg = fmtDate(date) + ' günü için gün sonu alınsın mı?\n\nBu işlemden sonra o günün satışları kilitlenir (iptal ve düzenleme kapanır). Yanlışlıkla alırsanız "Günü Yeniden Aç" ile geri alabilirsiniz.';
+            if (pending > 0) msg += '\n\n⚠ ' + pending + ' bekleyen (tamamlanmamış) sipariş var. Bunlar gün sonuna DAHİL EDİLMEZ.';
+            if (!confirm(msg)) return;
+            const c = createClosure(date, false);
+            renderReport();
+            if (c && confirm('Gün sonu alındı (No: ' + c.no + ').\nGün sonu fişi yazdırılsın mı?')) printClosure(c.no);
+        }
+
+        function reopenDay() {
+            const date = document.getElementById('reportDateFilter').value;
+            const c = activeClosure(date);
+            if (!c) return;
+            askAuth('Günü yeniden aç', () => {
+                c.status = 'reopened';
+                const now = new Date();
+                c.reopenedAt = now.getTime(); c.reopenedDate = localDateStr(now); c.reopenedTime = localTimeStr(now);
+                saveClosures();
+                logAudit('gunsonu_acildi', 'Gün yeniden açıldı: Gün sonu No ' + c.no + ' geçersiz sayıldı (' + fmtDate(c.date) + '). Satışlar korundu.', c.date);
+                renderReport();
+                toast('Gün yeniden açıldı. Satışlar korundu.');
+            });
+        }
+
+        // Geçmiş günlerde kapanmamış olanları kapatır. Yeniden açılan gün, açıldığı gün boyunca açık kalır.
+        function autoCloseDays() {
+            const today = localDateStr();
+            const made = [];
+            const dates = Array.from(new Set(completedOrders.map(o => o.date))).filter(d => d < today).sort();
+            dates.forEach(d => {
+                if (activeClosure(d)) return;
+                if (closures.some(c => c.date === d && c.status === 'reopened' && c.reopenedDate === today)) return;
+                const c = createClosure(d, true);
+                if (c) made.push(c);
+            });
+            return made;
+        }
+        function runAutoClose() {
+            let made = [];
+            try { made = autoCloseDays(); } catch (e) { console.error('Otomatik gün sonu hatası:', e); }
+            if (made.length) {
+                const msg = made.length === 1
+                    ? fmtDate(made[0].date) + ' günü için gün sonu otomatik alındı (No: ' + made[0].no + ')'
+                    : made.length + ' günün gün sonu otomatik alındı';
+                toast(msg, false, 7000);
+                const rt = document.getElementById('reportTab');
+                if (rt && !rt.classList.contains('hidden')) renderReport();
+            }
+            return made;
+        }
+
+        // ---- Gün sonu fişi ----
+        function buildClosureText(c, W, forPrinter) {
+            W = W || 32;
+            const money = n => forPrinter ? Number(n).toFixed(2) + ' TL' : formatMoney(n);
+            const sep = '-'.repeat(W);
+            const center = t => { t = String(t); return ' '.repeat(Math.max(0, Math.floor((W - t.length) / 2))) + t; };
+            const row = (l, r) => {
+                l = String(l); r = String(r);
+                if (l.length + r.length + 1 <= W) return [l + ' '.repeat(W - l.length - r.length) + r];
+                const ls = wrapText(l, Math.max(8, W - r.length - 1));
+                const last = ls.pop();
+                ls.push(last + ' '.repeat(Math.max(1, W - last.length - r.length)) + r);
+                return ls;
+            };
+            const st = c.stats, out = [];
+            wrapText(getBusinessName(), W).forEach(l => out.push(center(l)));
+            out.push(center('GÜN SONU RAPORU'), sep);
+            out.push(...row('Gün Sonu No:', c.no), ...row('Tarih:', fmtDate(c.date)),
+                ...row('Alınma:', fmtDate(c.closedDate) + ' ' + c.closedTime), ...row('Tür:', c.auto ? 'Otomatik' : 'Elle'), sep);
+            out.push(...row('Satış adedi:', st.count), ...row('CİRO', money(st.revenue)), sep);
+            if (st.cancelledCount > 0) out.push(...row('İptal:', st.cancelledCount + ' adet, ' + money(st.cancelledTotal)));
+            if (st.editedCount > 0) out.push(...row('Düzeltilen fiş:', st.editedCount + ' adet'));
+            if (st.cancelledCount > 0 || st.editedCount > 0) out.push(sep);
+            out.push(center('SATILAN ÜRÜNLER'), sep);
+            if (!st.items.length) out.push('(satış yok)');
+            st.items.forEach(i => out.push(...row(i.name, i.qty + ' adet')));
+            out.push(sep, center('Yazdırma: ' + localDateStr() + ' ' + localTimeStr()));
+            return out.join('\n');
+        }
+
+        function sharePlainText(text, title) {
+            (async () => {
+                try { if (navigator.share) { await navigator.share({ title: title, text: text }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+                try { await navigator.clipboard.writeText(text); alert('Metin panoya kopyalandı.'); } catch (e) { alert(text); }
+            })();
+        }
+        async function printPlainText(text, jobName) {
+            const cfg = getDefaultPrinter();
+            if (cfg) {
+                try { toast('Yazıcıya gönderiliyor…'); await sendToPrinter(cfg, text); toast('Yazdırıldı ✓'); }
+                catch (e) { toast('Yazdırılamadı: ' + errMsg(e), true); }
+                return;
+            }
+            const pre = '<pre style="font-family:\'Courier New\',monospace;font-size:12px;line-height:1.45;white-space:pre-wrap;margin:0;">' + escapeHtml(text) + '</pre>';
+            const plg = nativePrinter();
+            if (plg && typeof plg.systemPrint === 'function') {
+                const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"></head><body style="margin:0;padding:8px;color:#000;background:#fff;">' + pre + '</body></html>';
+                try { await plg.systemPrint({ html: html, jobName: jobName }); return; } catch (e) { console.error(e); }
+            }
+            if (isAndroidWebView()) { sharePlainText(text, jobName); return; }
+            let area = document.getElementById('printArea');
+            if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
+            area.innerHTML = pre;
+            const cleanup = () => { area.innerHTML = ''; window.removeEventListener('afterprint', cleanup); };
+            window.addEventListener('afterprint', cleanup);
+            try { window.print(); } catch (e) { cleanup(); sharePlainText(text, jobName); }
+        }
+        function printClosure(no) {
+            const c = closures.find(x => x.no === no);
+            if (!c) return;
+            const cfg = getDefaultPrinter();
+            printPlainText(buildClosureText(c, cfg ? paperCols(cfg) : 32, !!cfg), 'GunSonu-' + c.no);
+        }
+
+        // ---- Rapor ekranı ----
+        const AUDIT_ICONS = { iptal: 'fa-ban text-red-400', duzenle: 'fa-pen text-amber-400', gunsonu: 'fa-lock text-emerald-400',
+            otomatik_gunsonu: 'fa-clock text-emerald-400', gunsonu_acildi: 'fa-lock-open text-amber-400', bekleyen_iptal: 'fa-ban text-slate-400', pin: 'fa-shield-halved text-slate-400' };
+
+        function renderReport() {
+            const selectedDate = document.getElementById('reportDateFilter').value;
+            const st = dayStats(selectedDate);
+            const clo = activeClosure(selectedDate);
+            const locked = !!clo;
+            const pending = orders.filter(o => o.date === selectedDate).length;
+
+            let itemsListHTML = '';
+            st.items.forEach(i => {
+                itemsListHTML += `<li class="flex justify-between text-xs py-1.5 border-b border-slate-800"><span>${escapeHtml(i.name)}</span><span class="font-bold text-brand-500">${i.qty} Adet</span></li>`;
+            });
+
+            let ordersListHTML = '', cancelledHTML = '';
+            completedOrders.forEach((o, i) => {
+                if (o.date !== selectedDate) return;
+                if (o.status === 'cancelled') {
+                    const cn = o.cancel || {};
+                    cancelledHTML += `<div class="bg-red-500/5 border border-red-500/20 px-3 py-2 rounded-lg text-xs space-y-1">
+                        <div class="flex justify-between items-center gap-2">
+                            <span><b>${escapeHtml(o.table)}</b> · Fiş ${escapeHtml(o.receiptNo || '-')} · ${escapeHtml(o.time)} · <span class="line-through text-slate-400">${Number(o.total).toFixed(2)} ₺</span></span>
+                            <button onclick="showReceiptByIndex(${i})" class="bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg font-semibold text-slate-200 shrink-0"><i class="fa-solid fa-receipt mr-1"></i> Fiş</button>
+                        </div>
+                        <div class="text-[11px] text-red-300/90">İptal: ${escapeHtml(cn.reason || '-')} · ${escapeHtml(cn.date ? fmtDate(cn.date) : '')} ${escapeHtml(cn.time || '')} · ${escapeHtml(cn.by || '')}</div>
+                    </div>`;
+                    return;
+                }
+                ordersListHTML += `<div class="bg-slate-900 px-3 py-2 rounded-lg text-xs space-y-2">
+                    <div class="flex justify-between items-center gap-2">
+                        <span><b>${escapeHtml(o.table)}</b> · ${escapeHtml(o.time)} · <span class="text-brand-500 font-bold">${Number(o.total).toFixed(2)} ₺</span>
+                            ${o.service === 'Paket' ? '<span class="ml-1 text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">PAKET</span>' : ''}
+                            ${o.edited ? '<span class="ml-1 text-[10px] bg-sky-500/20 text-sky-300 px-1.5 py-0.5 rounded">DÜZELTİLDİ</span>' : ''}</span>
+                        <span class="flex gap-1.5 shrink-0">
+                            <button onclick="showReceiptByIndex(${i})" class="bg-brand-600/20 text-brand-500 hover:bg-brand-600 hover:text-white px-2.5 py-1 rounded-lg font-semibold"><i class="fa-solid fa-receipt mr-1"></i> Fiş</button>
+                            ${locked ? '' : `<button onclick="openEditSale(${i})" class="bg-amber-500/15 text-amber-400 hover:bg-amber-500 hover:text-white px-2.5 py-1 rounded-lg font-semibold"><i class="fa-solid fa-pen mr-1"></i> Düzenle</button>
+                            <button onclick="openCancelSale(${i})" class="bg-red-500/15 text-red-400 hover:bg-red-600 hover:text-white px-2.5 py-1 rounded-lg font-semibold"><i class="fa-solid fa-ban mr-1"></i> İptal</button>`}
+                        </span>
+                    </div>
+                </div>`;
+            });
+
+            // Gün sonu durumu
+            let closurePanel;
+            if (locked) {
+                closurePanel = `<div class="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-2xl space-y-3">
+                    <div class="text-xs"><b class="text-emerald-400"><i class="fa-solid fa-lock mr-1"></i> Gün sonu alındı</b> · No: <b>${escapeHtml(clo.no)}</b><br>
+                        <span class="text-slate-400">${escapeHtml(fmtDate(clo.closedDate))} ${escapeHtml(clo.closedTime)} · ${clo.auto ? 'Otomatik' : 'Elle'} · Satışlar kilitli</span></div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="printClosure('${clo.no}')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-[11px] font-semibold text-white"><i class="fa-solid fa-print mr-1"></i> Gün Sonu Fişi Yazdır</button>
+                        <button onclick="reopenDay()" class="px-3 py-2 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-white rounded-xl text-[11px] font-semibold"><i class="fa-solid fa-lock-open mr-1"></i> Günü Yeniden Aç</button>
+                    </div></div>`;
+            } else {
+                const reopenedToday = closures.some(c => c.date === selectedDate && c.status === 'reopened' && c.reopenedDate === localDateStr());
+                closurePanel = `<div class="bg-brand-500/10 border border-brand-500/30 p-4 rounded-2xl space-y-3">
+                    <div class="text-xs"><b class="text-brand-500"><i class="fa-solid fa-lock-open mr-1"></i> Gün sonu henüz alınmadı</b>
+                        ${selectedDate < localDateStr() ? '' : '<br><span class="text-slate-400">Gece 00:00\'da otomatik alınır.</span>'}
+                        ${reopenedToday ? '<br><span class="text-amber-400">Bu gün yeniden açıldı; bugün boyunca açık kalır, sonraki gün otomatik kapanır.</span>' : ''}
+                        ${pending > 0 ? `<br><span class="text-amber-400">${pending} bekleyen sipariş var (gün sonuna dahil edilmez).</span>` : ''}</div>
+                    <button onclick="manualCloseDay()" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 rounded-xl text-xs font-semibold text-white"><i class="fa-solid fa-flag-checkered mr-1"></i> Gün Sonu Al</button>
+                    </div>`;
+            }
+            const voided = closures.filter(c => c.date === selectedDate && c.status === 'reopened');
+            const voidedHTML = voided.length ? `<p class="text-[11px] text-slate-500">Geçersiz kılınan gün sonları: ${voided.map(c => 'No ' + escapeHtml(c.no) + ' (yeniden açıldı ' + escapeHtml(fmtDate(c.reopenedDate)) + ' ' + escapeHtml(c.reopenedTime) + ')').join(', ')}</p>` : '';
+
+            const auditRows = auditLog.filter(a => a.forDate === selectedDate).slice().reverse().map(a =>
+                `<div class="text-[11px] py-1.5 border-b border-slate-800 flex gap-2"><i class="fa-solid ${AUDIT_ICONS[a.type] || 'fa-circle text-slate-500'} mt-0.5"></i>
+                    <span><span class="text-slate-500">${escapeHtml(fmtDate(a.date))} ${escapeHtml(a.time)} · ${escapeHtml(a.by)}</span><br>${escapeHtml(a.text)}</span></div>`).join('');
+
+            document.getElementById('reportContainer').innerHTML = `
+                ${closurePanel}
+                ${voidedHTML}
+                <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl">
+                    <span class="text-xs text-slate-400 block">Seçilen Tarih Ciro Özeti (${escapeHtml(selectedDate)})</span>
+                    <h2 class="text-2xl font-black text-brand-500 mt-1">${st.revenue.toFixed(2)} ₺</h2>
+                    <p class="text-xs text-slate-400 mt-2">Toplam Tamamlanan Sipariş: <b class="text-white">${st.count}</b></p>
+                    ${st.cancelledCount > 0 ? `<p class="text-xs text-red-400 mt-1">İptal: <b>${st.cancelledCount} adet, ${st.cancelledTotal.toFixed(2)} ₺</b> (cirodan düşüldü)</p>` : ''}
+                </div>
+                <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl">
+                    <h4 class="font-bold text-sm mb-3">Tamamlanan Siparişler</h4>
+                    <div class="space-y-2">${ordersListHTML || '<p class="text-slate-500 text-xs">Bu tarihte tamamlanan sipariş yok.</p>'}</div>
+                </div>
+                ${cancelledHTML ? `<div class="bg-slate-950 border border-red-500/20 p-4 rounded-2xl">
+                    <h4 class="font-bold text-sm mb-3 text-red-400"><i class="fa-solid fa-ban mr-1"></i> İptaller</h4>
+                    <div class="space-y-2">${cancelledHTML}</div></div>` : ''}
+                <div class="bg-slate-950 border border-slate-800 p-4 rounded-2xl">
+                    <h4 class="font-bold text-sm mb-3">Bu Tarihte Satılan Ürünler</h4>
+                    <ul class="space-y-1">
+                        ${itemsListHTML || '<p class="text-slate-500 text-xs">Bu tarihte satış kaydı bulunmuyor.</p>'}
+                    </ul>
+                </div>
+                <details class="bg-slate-950 border border-slate-800 p-4 rounded-2xl">
+                    <summary class="font-bold text-sm cursor-pointer">İşlem Kaydı (${auditLog.filter(a => a.forDate === selectedDate).length})</summary>
+                    <div class="mt-3">${auditRows || '<p class="text-slate-500 text-xs">Bu tarih için işlem kaydı yok.</p>'}</div>
+                </details>
+            `;
+        }
+
+        function openCustomerPanel() {
+            document.getElementById('roleSelection').classList.add('hidden');
+            document.getElementById('customerPanel').classList.remove('hidden');
+            renderCustomerCategories();
+            renderCustomerMenu('Tümü');
+        }
+
+        function renderCustomerCategories() {
+            let cats = ['Tümü', ...categories.filter(c => products.some(p => p.category === c && isProductVisibleToCustomer(p)))];
+            let html = '';
+            cats.forEach(c => {
+                let isActive = activeCustomerCategory === c;
+                html += `<button onclick="renderCustomerMenu('${c}')" class="cat-filter-btn ${isActive ? 'bg-brand-600 text-white' : 'bg-slate-900 border border-slate-800 text-slate-300'} px-4 py-2 rounded-xl text-xs whitespace-nowrap font-semibold transition">${c}</button>`;
+            });
+            document.getElementById('customerCategories').innerHTML = html;
+        }
+
+        function productHasOptions(p) { return Array.isArray(p.options) && p.options.length > 0; }
+        function cartQtyOfProduct(id) {
+            return Object.values(cart).filter(i => String(i.id) === String(id)).reduce((a, i) => a + i.qty, 0);
+        }
+
+        // ---- ÜRÜN SERVİS SAATİ ----
+        function hmToMin(t) {
+            const m = String(t || '').match(/^(\d{1,2}):(\d{2})$/);
+            return m ? (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : null;
+        }
+        // { available: bool, msg: 'müşteriye gösterilecek açıklama' }
+        function productAvailability(p, now) {
+            const f = hmToMin(p.availFrom), t = hmToMin(p.availTo);
+            if (f === null && t === null) return { available: true, msg: '' };
+            const d = now || new Date();
+            const cur = d.getHours() * 60 + d.getMinutes();
+            let ok, msg = '';
+            if (f !== null && t !== null) {
+                if (f === t) return { available: true, msg: '' };
+                if (f < t) {                                  // aynı gün içinde: 17:00 - 23:00
+                    ok = cur >= f && cur < t;
+                    if (!ok) msg = cur < f ? (p.availFrom + ' itibarıyla servis edilir') : ('Bugünlük servis bitti · yarın ' + p.availFrom + ' itibarıyla');
+                } else {                                      // gece yarısını geçen: 18:00 - 02:00
+                    ok = cur >= f || cur < t;
+                    if (!ok) msg = p.availFrom + ' itibarıyla servis edilir';
+                }
+            } else if (f !== null) {                          // sadece başlangıç
+                ok = cur >= f;
+                if (!ok) msg = p.availFrom + ' itibarıyla servis edilir';
+            } else {                                          // sadece bitiş
+                ok = cur < t;
+                if (!ok) msg = 'Bugünlük servis bitti';
+            }
+            return { available: ok, msg: ok ? '' : msg };
+        }
+        function isProductVisibleToCustomer(p) {
+            return productAvailability(p).available || p.availMode !== 'hide';
+        }
+        // Sepetteki, servis saati dışına çıkmış ürünleri çıkarır; çıkarılanların listesini döner
+        function purgeUnavailableFromCart() {
+            const removed = [];
+            Object.keys(cart).forEach(k => {
+                const it = cart[k];
+                const p = products.find(x => String(x.id) === String(it.id));
+                if (!p) return;
+                const av = productAvailability(p);
+                if (!av.available) { removed.push(it.name + ' — ' + av.msg); delete cart[k]; }
+            });
+            if (removed.length) { renderCustomerMenu(activeCustomerCategory); renderCartModalIfOpen(); }
+            return removed;
+        }
+        function refreshCustomerMenuIfOpen() {
+            const cp = document.getElementById('customerPanel');
+            if (cp && !cp.classList.contains('hidden')) renderCustomerMenu(activeCustomerCategory);
+        }
+
+        function renderCustomerMenu(cat) {
+            if (cat !== 'Tümü' && !products.some(p => p.category === cat && isProductVisibleToCustomer(p))) cat = 'Tümü';
+            activeCustomerCategory = cat;
+            renderCustomerCategories();
+
+            let list = document.getElementById('customerProductList');
+            let html = '';
+            let filtered = (cat === 'Tümü' ? products : products.filter(p => p.category === cat)).filter(isProductVisibleToCustomer);
+
+            filtered.forEach((p) => {
+                const av = productAvailability(p);
+                const qty = cartQtyOfProduct(p.id);
+                const win = (p.availFrom || p.availTo)
+                    ? `<span class="text-[10px] text-sky-300 ml-1"><i class="fa-solid fa-clock mr-0.5"></i>${escapeHtml(p.availFrom || '00:00')}–${escapeHtml(p.availTo || '24:00')}</span>` : '';
+                const minus = qty > 0 ? `<button onclick="decreaseCart('${p.id}')" class="bg-slate-800 text-slate-200 w-8 h-8 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-minus"></i></button><span class="text-xs font-bold w-4 text-center">${qty}</span>` : '';
+                const plus = av.available
+                    ? `<button onclick="addToCart('${p.id}')" class="bg-brand-600 hover:bg-brand-500 text-white w-9 h-9 rounded-xl flex items-center justify-center text-sm shadow"><i class="fa-solid fa-plus"></i></button>`
+                    : `<span class="bg-slate-800 text-slate-500 w-9 h-9 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-lock"></i></span>`;
+                html += `<div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center gap-3 ${av.available ? '' : 'opacity-60'}">
+                    <img src="${p.image}" class="w-16 h-16 rounded-xl object-cover ${av.available ? '' : 'grayscale'}">
+                    <div class="flex-1">
+                        <span class="text-[10px] text-brand-500 bg-brand-500/10 px-2 py-0.5 rounded-md font-semibold">${escapeHtml(p.category)}</span>${win}
+                        <h4 class="font-bold text-sm mt-1">${escapeHtml(p.name)}</h4>
+                        <p class="text-xs text-slate-400 mt-0.5">${escapeHtml(p.desc || '')}</p>
+                        <span class="text-xs font-bold text-brand-500 mt-1 block">${p.price} ₺ ${productHasOptions(p) ? '<span class="text-[10px] font-semibold text-amber-400 ml-1"><i class="fa-solid fa-sliders mr-0.5"></i>Seçenekli</span>' : ''}</span>
+                        ${av.available ? '' : `<p class="text-[11px] text-amber-400 font-semibold mt-1"><i class="fa-solid fa-moon mr-1"></i>${escapeHtml(av.msg)}</p>`}
+                    </div>
+                    <div class="flex items-center gap-2">${minus}${plus}</div>
+                </div>`;
+            });
+            list.innerHTML = html || '<p class="text-slate-500 text-xs text-center py-8">Bu kategoride ürün bulunmuyor.</p>';
+            updateCartTotal();
+        }
+
+        function addToCart(id) {
+            const prod = products.find(p => String(p.id) === String(id));
+            if (!prod) return;
+            const av = productAvailability(prod);
+            if (!av.available) { renderCustomerMenu(activeCustomerCategory); return toast(prod.name + ': ' + av.msg, true); }
+            if (productHasOptions(prod)) openOptionModal(prod.id);
+            else addCartLine(prod, []);
+        }
+        // eski çağrılarla uyumluluk
+        function increaseCart(id) { addToCart(id); }
+
+        function cartKeyFor(prod, sel) {
+            return prod.id + '|' + sel.map(s => s.group + '=' + s.name).join(';');
+        }
+
+        function addCartLine(prod, sel) {
+            const unit = (Number(prod.price) || 0) + sel.reduce((a, o) => a + (Number(o.price) || 0), 0);
+            const key = cartKeyFor(prod, sel);
+            if (cart[key]) cart[key].qty++;
+            else cart[key] = { key: key, id: prod.id, name: prod.name, price: unit, qty: 1, options: sel };
+            renderCustomerMenu(activeCustomerCategory);
+            renderCartModalIfOpen();
+        }
+
+        // Listedeki "−": o ürünün en son eklenen satırından 1 düşer
+        function decreaseCart(id) {
+            const keys = Object.keys(cart).filter(k => String(cart[k].id) === String(id));
+            if (keys.length === 0) return;
+            const k = keys[keys.length - 1];
+            cart[k].qty--;
+            if (cart[k].qty <= 0) delete cart[k];
+            renderCustomerMenu(activeCustomerCategory);
+            renderCartModalIfOpen();
+        }
+
+        function cartTotalValue() {
+            return Object.values(cart).reduce((sum, item) => sum + (item.price * item.qty), 0);
+        }
+
+        function updateCartTotal() {
+            document.getElementById('cartTotal').innerText = cartTotalValue().toFixed(2) + " ₺";
+            const cnt = Object.values(cart).reduce((a, i) => a + i.qty, 0);
+            const badge = document.getElementById('cartCount');
+            if (badge) badge.textContent = cnt;
+        }
+
+        // ---- Seçenek penceresi (müşteri) ----
+        let optCtx = null; // { prod, sel: { [groupId]: [choiceIndex,...] } }
+
+        function openOptionModal(prodId) {
+            const prod = products.find(p => String(p.id) === String(prodId));
+            if (!prod) return;
+            const sel = {};
+            prod.options.forEach(g => {
+                if (g.type === 'single') sel[g.id] = g.required ? [0] : [];
+                else sel[g.id] = [];
+            });
+            optCtx = { prod: prod, sel: sel };
+            document.getElementById('optionModalTitle').textContent = prod.name;
+            document.getElementById('optionError').classList.add('hidden');
+            renderOptionModal();
+            document.getElementById('optionModal').classList.remove('hidden');
+        }
+        function closeOptionModal() {
+            document.getElementById('optionModal').classList.add('hidden');
+            optCtx = null;
+        }
+
+        function optionModalTotal() {
+            if (!optCtx) return 0;
+            let t = Number(optCtx.prod.price) || 0;
+            optCtx.prod.options.forEach(g => (optCtx.sel[g.id] || []).forEach(ci => { t += Number(g.choices[ci].price) || 0; }));
+            return t;
+        }
+
+        function renderOptionModal() {
+            if (!optCtx) return;
+            const box = document.getElementById('optionGroups');
+            box.innerHTML = '';
+            optCtx.prod.options.forEach(g => {
+                const wrap = document.createElement('div');
+                const title = document.createElement('div');
+                title.className = 'flex items-center gap-2 mb-2';
+                const tn = document.createElement('span');
+                tn.className = 'font-bold text-sm'; tn.textContent = g.name;
+                const tag = document.createElement('span');
+                tag.className = 'text-[10px] px-2 py-0.5 rounded-md font-semibold ' + (g.required ? 'bg-red-500/15 text-red-400' : 'bg-slate-800 text-slate-400');
+                tag.textContent = (g.required ? 'Zorunlu' : 'İsteğe bağlı') + (g.type === 'multi' ? ' · birden fazla seçilebilir' : '');
+                title.append(tn, tag);
+                wrap.appendChild(title);
+
+                const addRow = (label, priceTxt, checked, onPick, inputType, nameAttr) => {
+                    const row = document.createElement('label');
+                    row.className = 'flex items-center justify-between gap-3 bg-slate-950 border rounded-xl px-3 py-2.5 mb-1.5 cursor-pointer ' + (checked ? 'border-brand-500' : 'border-slate-800');
+                    const left = document.createElement('span');
+                    left.className = 'flex items-center gap-2 text-sm';
+                    const inp = document.createElement('input');
+                    inp.type = inputType; inp.name = nameAttr; inp.checked = checked;
+                    inp.className = 'accent-orange-500 w-4 h-4';
+                    inp.onchange = onPick;
+                    const tx = document.createElement('span'); tx.textContent = label;
+                    left.append(inp, tx);
+                    const pr = document.createElement('span');
+                    pr.className = 'text-xs font-semibold text-brand-500'; pr.textContent = priceTxt;
+                    row.append(left, pr);
+                    wrap.appendChild(row);
+                };
+
+                if (g.type === 'single') {
+                    if (!g.required) {
+                        addRow('Seçme', '', (optCtx.sel[g.id] || []).length === 0,
+                            () => { optCtx.sel[g.id] = []; renderOptionModal(); }, 'radio', 'og_' + g.id);
+                    }
+                    g.choices.forEach((c, ci) => {
+                        addRow(c.name, c.price > 0 ? '+' + Number(c.price).toFixed(2) + ' ₺' : '',
+                            (optCtx.sel[g.id] || []).includes(ci),
+                            () => { optCtx.sel[g.id] = [ci]; renderOptionModal(); }, 'radio', 'og_' + g.id);
+                    });
+                } else {
+                    g.choices.forEach((c, ci) => {
+                        addRow(c.name, c.price > 0 ? '+' + Number(c.price).toFixed(2) + ' ₺' : '',
+                            (optCtx.sel[g.id] || []).includes(ci),
+                            () => {
+                                const cur = optCtx.sel[g.id] || [];
+                                optCtx.sel[g.id] = cur.includes(ci) ? cur.filter(x => x !== ci) : [...cur, ci];
+                                renderOptionModal();
+                            }, 'checkbox', 'og_' + g.id + '_' + ci);
+                    });
+                }
+                box.appendChild(wrap);
+            });
+            document.getElementById('optionTotal').textContent = optionModalTotal().toFixed(2) + ' ₺';
+        }
+
+        function confirmOptions() {
+            if (!optCtx) return;
+            const missing = optCtx.prod.options.find(g => g.required && (optCtx.sel[g.id] || []).length === 0);
+            if (missing) {
+                const err = document.getElementById('optionError');
+                err.textContent = '"' + missing.name + '" için bir seçim yapmalısınız.';
+                err.classList.remove('hidden');
+                return;
+            }
+            const chosen = [];
+            optCtx.prod.options.forEach(g => {
+                (optCtx.sel[g.id] || []).slice().sort((a, b) => a - b).forEach(ci => {
+                    chosen.push({ group: g.name, name: g.choices[ci].name, price: Number(g.choices[ci].price) || 0 });
+                });
+            });
+            const prod = optCtx.prod;
+            closeOptionModal();
+            const av2 = productAvailability(prod);
+            if (!av2.available) { renderCustomerMenu(activeCustomerCategory); return toast(prod.name + ': ' + av2.msg, true); }
+            addCartLine(prod, chosen);
+        }
+
+        // ---- Sepet penceresi + Burada / Paket ----
+        let orderService = 'Burada';
+
+        function setOrderService(v) {
+            orderService = v;
+            const on = 'py-2.5 rounded-xl text-xs font-semibold transition bg-brand-600 text-white';
+            const off = 'py-2.5 rounded-xl text-xs font-semibold transition bg-slate-950 border border-slate-800 text-slate-300';
+            document.getElementById('svcHere').className = v === 'Burada' ? on : off;
+            document.getElementById('svcTakeaway').className = v === 'Paket' ? on : off;
+        }
+
+        function openCartModal() {
+            if (Object.keys(cart).length === 0) return alert('Sepetiniz boş!');
+            setOrderService(orderService);
+            renderCartModal();
+            document.getElementById('cartModal').classList.remove('hidden');
+        }
+        function closeCartModal() { document.getElementById('cartModal').classList.add('hidden'); }
+        function renderCartModalIfOpen() {
+            const m = document.getElementById('cartModal');
+            if (m && !m.classList.contains('hidden')) {
+                if (Object.keys(cart).length === 0) closeCartModal(); else renderCartModal();
+            }
+        }
+
+        function renderCartModal() {
+            const box = document.getElementById('cartLines');
+            box.innerHTML = '';
+            Object.keys(cart).forEach((k, idx) => {
+                const it = cart[k];
+                const row = document.createElement('div');
+                row.className = 'bg-slate-950 border border-slate-800 rounded-2xl p-3 flex items-center gap-3';
+                const info = document.createElement('div');
+                info.className = 'flex-1 min-w-0';
+                const nm = document.createElement('div');
+                nm.className = 'font-bold text-sm'; nm.textContent = it.name;
+                info.appendChild(nm);
+                (it.options || []).forEach(op => {
+                    const d = document.createElement('div');
+                    d.className = 'text-[11px] text-slate-400'; d.textContent = '+ ' + optText(op);
+                    info.appendChild(d);
+                });
+                const pr = document.createElement('div');
+                pr.className = 'text-xs font-bold text-brand-500 mt-1';
+                pr.textContent = (it.price * it.qty).toFixed(2) + ' ₺';
+                info.appendChild(pr);
+
+                const ctr = document.createElement('div');
+                ctr.className = 'flex items-center gap-2';
+                ctr.innerHTML = `<button onclick="cartLineDec(${idx})" class="bg-slate-800 text-slate-200 w-8 h-8 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-minus"></i></button>
+                    <span class="text-xs font-bold w-4 text-center">${it.qty}</span>
+                    <button onclick="cartLineInc(${idx})" class="bg-brand-600 text-white w-8 h-8 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-plus"></i></button>`;
+                row.append(info, ctr);
+                box.appendChild(row);
+            });
+            document.getElementById('cartModalTotal').textContent = cartTotalValue().toFixed(2) + ' ₺';
+        }
+
+        function cartLineInc(idx) {
+            const k = Object.keys(cart)[idx]; if (!k) return;
+            cart[k].qty++;
+            renderCustomerMenu(activeCustomerCategory); renderCartModalIfOpen();
+        }
+        function cartLineDec(idx) {
+            const k = Object.keys(cart)[idx]; if (!k) return;
+            cart[k].qty--;
+            if (cart[k].qty <= 0) delete cart[k];
+            renderCustomerMenu(activeCustomerCategory); renderCartModalIfOpen();
+        }
+
+        function proceedToCheckout() {
+            if (Object.keys(cart).length === 0) return alert('Sepetiniz boş!');
+            const gone = purgeUnavailableFromCart();
+            if (gone.length) {
+                alert('Şu ürünler artık servis edilmiyor ve sepetten çıkarıldı:\n\n• ' + gone.join('\n• '));
+                return;
+            }
+            closeCartModal();
+            if (webTable) { verifyAndProcessTable(webTable, true); return; }   // masa zaten adresten biliniyor, kamera gerekmez
+            openCheckout();
+        }
+
+        // CANLI KAMERA VE TARAYICI MANTIĞI
+        function openCheckout() {
+            if (Object.keys(cart).length === 0) return alert('Sepetiniz boş!');
+            document.getElementById('manualTableInput').value = '';
+            document.getElementById('checkoutModal').classList.remove('hidden');
+            startLiveScanner();
+        }
+
+        function setScannerStatus(message, isError = false) {
+            const status = document.getElementById('scannerStatus');
+            if (!status) return;
+            status.textContent = message;
+            status.className = 'text-xs ' + (isError ? 'text-red-400' : 'text-emerald-400 font-semibold');
+        }
+
+        function closeCheckoutModal() {
+            stopLiveScanner();
+            const video = document.getElementById('scannerVideo');
+            if (video) video.srcObject = null;
+            document.getElementById('checkoutModal').classList.add('hidden');
+        }
+
+        async function startLiveScanner() {
+            stopLiveScanner();
+            const video = document.getElementById('scannerVideo');
+
+            if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setScannerStatus('Kamera için HTTPS veya uygulamanın güvenli bağlantısı gerekli. Masa numarasını elle girebilirsiniz.', true);
+                return;
+            }
+            if (typeof window.jsQR !== 'function') {
+                setScannerStatus('QR okuma bileşeni yüklenemedi. Masa numarasını elle girin.', true);
+                return;
+            }
+
+            setScannerStatus('Kamera izni bekleniyor…');
+            try {
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+                    });
+                } catch (firstError) {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+                }
+
+                if (!scanningActive && document.getElementById('checkoutModal').classList.contains('hidden')) {
+                    stream.getTracks().forEach(track => track.stop());
+                    return;
+                }
+                videoStream = stream;
+                video.srcObject = stream;
+                video.setAttribute('playsinline', '');
+                video.muted = true;
+                await video.play();
+                scanningActive = true;
+
+                // Fener takibini ayarla
+                const track = stream.getVideoTracks()[0];
+                if (track) {
+                    const capabilities = track.getCapabilities();
+                    if (capabilities && capabilities.torch) {
+                        flashTrack = track;
+                    }
+                }
+
+                setScannerStatus('QR kodu çerçevenin içine tutun');
+                requestAnimationFrame(scanTick);
+            } catch (err) {
+                scanningActive = false;
+                let message = 'Kamera açılamadı.';
+                if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+                    message = 'Kamera izni verilmedi.';
+                } else if (err && (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError')) {
+                    message = 'Kamera bulunamadı.';
+                }
+                setScannerStatus(message + ' Masa numarasını elle girebilirsiniz.', true);
+            }
+        }
+
+        function stopLiveScanner() {
+            scanningActive = false;
+            turnOffFlash();
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            flashTrack = null;
+        }
+
+        // Fener Fonksiyonları
+        async function turnOnFlash() {
+            try {
+                if (flashTrack) {
+                    await flashTrack.applyConstraints({ advanced: [{ torch: true }] });
+                }
+            } catch (e) {
+                console.log('Fener açılamadı', e);
+            }
+        }
+
+        async function turnOffFlash() {
+            try {
+                if (flashTrack) {
+                    await flashTrack.applyConstraints({ advanced: [{ torch: false }] });
+                }
+            } catch (e) {
+                console.log('Fener kapatılamadı', e);
+            }
+        }
+
+        // Donanımsal Ses Tuşları Dinleyicisi
+        document.addEventListener('keydown', (event) => {
+            const modal = document.getElementById('checkoutModal');
+            if (!modal || modal.classList.contains('hidden')) return;
+
+            // Ses Açma Tuşu (VolumeUp) -> Fener Yak
+            if (event.key === 'AudioVolumeUp' || event.code === 'AudioVolumeUp' || event.keyCode === 175) {
+                event.preventDefault();
+                turnOnFlash();
+            }
+            // Ses Kısma Tuşu (VolumeDown) -> Fener Kapat
+            else if (event.key === 'AudioVolumeDown' || event.code === 'AudioVolumeDown' || event.keyCode === 176) {
+                event.preventDefault();
+                turnOffFlash();
+            }
+        });
+
+        function scanTick() {
+            if (!scanningActive) return;
+            const video = document.getElementById('scannerVideo');
+            const canvas = document.getElementById('scannerCanvas');
+
+            try {
+                if (video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'attemptBoth'
+                    });
+                    if (code && code.data && code.data.trim()) {
+                        const scanned = code.data.trim();
+                        // Aynı hatalı kod kamerada durduğu sürece tekrar tekrar uyarı verme
+                        if (!(scanned === lastBadCode && Date.now() - lastBadTime < 3000)) {
+                            if (verifyAndProcessTable(scanned, true)) return;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('QR tarama hatası:', err);
+            }
+            requestAnimationFrame(scanTick);
+        }
+
+        function submitManualTable() {
+            let val = document.getElementById('manualTableInput').value.trim();
+            if(!val) return alert('Lütfen masa numarasını girin!');
+            verifyAndProcessTable(val);
+        }
+
+        function showScanError(tableNo) {
+            lastBadCode = tableNo;
+            lastBadTime = Date.now();
+            setScannerStatus('❌ Hatalı QR kod! Kayıtlı olmayan kod okutuldu: ' + tableNo, true);
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            const frame = document.getElementById('scannerFrame');
+            if (frame) {
+                frame.classList.remove('border-white/50');
+                frame.classList.add('border-red-500', 'bg-red-500/20');
+                setTimeout(() => {
+                    frame.classList.add('border-white/50');
+                    frame.classList.remove('border-red-500', 'bg-red-500/20');
+                }, 1200);
+            }
+            clearTimeout(statusTimer);
+            statusTimer = setTimeout(() => {
+                if (scanningActive) setScannerStatus('QR kodu çerçevenin içine tutun');
+            }, 3000);
+        }
+
+        // fromScanner=true: doğru kodda true döner (tarama biter), yanlışta false döner (tarama sürer)
+        function verifyAndProcessTable(scannedValue, fromScanner = false) {
+            scannedValue = extractTableFromScan(scannedValue);
+            // Web bağlantısıyla gelen müşteride (demo) masa, adresten gelir ve güvenilir kabul edilir.
+            // Firebase aşamasında bu kontrol sunucuda yapılacak.
+            const tableNo = findRegisteredTable(scannedValue) ||
+                ((webTable && String(scannedValue).trim().toLocaleLowerCase('tr') === webTable.toLocaleLowerCase('tr')) ? webTable : null);
+            if(!tableNo) {
+                showScanError(String(scannedValue));
+                if (!fromScanner) alert('Hatalı QR / Masa Kodu! Sistemde kayıtlı olmayan bir masa girdiniz: ' + scannedValue);
+                return false;
+            }
+
+            const goneNow = purgeUnavailableFromCart();
+            if (goneNow.length) {
+                stopLiveScanner();
+                const cm = document.getElementById('checkoutModal'); if (cm) cm.classList.add('hidden');
+                alert('Şu ürünler artık servis edilmiyor ve sepetten çıkarıldı:\n\n• ' + goneNow.join('\n• ') + '\n\nLütfen sepetinizi kontrol edip tekrar deneyin.');
+                return false;
+            }
+
+            stopLiveScanner();
+
+            let cartItemsArr = Object.values(cart);
+            let totalAmount = cartItemsArr.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const nowObj = new Date();
+            let nowTime = localTimeStr(nowObj);
+            let nowDate = localDateStr(nowObj);
+
+            orders.push({
+                table: tableNo,
+                cartItems: cartItemsArr,
+                total: totalAmount,
+                time: nowTime,
+                date: nowDate,
+                ts: nowObj.getTime(),
+                service: orderService
+            });
+            orderService = 'Burada';
+            
+            localStorage.setItem('cg_orders', JSON.stringify(orders));
+            setTableOccupied(tableNo, true);
+            cart = {};
+            updateCartTotal();
+            closeCheckoutModal();
+            
+            alert('Başarılı! ' + tableNo + ' için sipariş oluşturuldu ve yönetici paneline iletildi.');
+            if (webTable) { renderCustomerMenu('Tümü'); }      // web müşterisi menüde kalır
+            else logoutToRoleSelection();
+            return true;
+        }
+
+        function updateCredentials() {
+            let u = document.getElementById('newUsername').value;
+            let p = document.getElementById('newPassword').value;
+            if(u && p) {
+                adminData = {user: u, pass: p};
+                localStorage.setItem('cg_admin', JSON.stringify(adminData));
+                alert('Yönetici bilgileri güncellendi!');
+            }
+        }
+
+        // ================== WEB / PC ==================
+        // Adresten gelen masa: https://site/?masa=5  (yalnızca tarayıcıda; APK içinde yok sayılır)
+        let webTable = null;
+        try {
+            const qp = new URLSearchParams(location.search).get('masa');
+            if (qp && !isNativeApp()) webTable = qp.trim().slice(0, 40) || null;
+        } catch (e) { webTable = null; }
+
+        function getSiteUrl() {
+            const saved = localStorage.getItem('cg_site_url');
+            if (saved) return saved;
+            if (!isNativeApp() && /^https?:$/.test(location.protocol)) {
+                return (location.origin + location.pathname).replace(/index\.html$/, '');
+            }
+            return '';
+        }
+        function qrTextFor(no) {
+            const base = getSiteUrl();
+            if (!base) return String(no);
+            return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'masa=' + encodeURIComponent(String(no));
+        }
+        function saveSiteUrl() {
+            const v = document.getElementById('siteUrlInput').value.trim();
+            if (v && !/^https?:\/\/[^\s]+$/i.test(v)) return toast('Adres https:// ile başlamalı (örn: https://restoran.netlify.app)', true);
+            if (v) localStorage.setItem('cg_site_url', v); else localStorage.removeItem('cg_site_url');
+            renderTableQRs();
+            toast(v ? 'Web adresi kaydedildi ✓ QR\'lar yenilendi' : 'Web adresi kaldırıldı; QR yalnızca masa kodu içerir');
+        }
+        // QR/yazı: tam adres ise içinden masa=... değerini al, değilse olduğu gibi bırak
+        function extractTableFromScan(v) {
+            const t = String(v || '').trim();
+            if (/^https?:\/\//i.test(t)) {
+                try { const m = new URL(t).searchParams.get('masa'); if (m && m.trim()) return m.trim(); } catch (e) { /* düz metin */ }
+            }
+            return t;
+        }
+        function showWebTableBanner() {
+            const cp = document.getElementById('customerPanel');
+            if (!cp || document.getElementById('webTableBanner')) return;
+            const d = document.createElement('div');
+            d.id = 'webTableBanner';
+            d.className = 'mb-3 text-center text-xs font-semibold bg-brand-500/15 text-brand-500 border border-brand-500/30 rounded-xl py-2';
+            d.textContent = 'Masa: ' + webTable;
+            cp.insertBefore(d, cp.firstChild);
+        }
+
+        // PWA: tarayıcıda "yükle" + internet kesilince önbellekten açılma (APK içinde kapalı)
+        if ('serviceWorker' in navigator && !isNativeApp() && /^https?:$/.test(location.protocol)) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+        }
+        let deferredInstall = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstall = e;
+            const rs = document.getElementById('roleSelection');
+            if (!rs || document.getElementById('installAppBtn')) return;
+            const b = document.createElement('button');
+            b.id = 'installAppBtn';
+            b.className = 'mt-6 text-xs text-slate-300 hover:text-white underline';
+            b.innerHTML = '<i class="fa-solid fa-download mr-1"></i> Uygulamayı bu cihaza yükle';
+            b.onclick = async () => { try { deferredInstall.prompt(); await deferredInstall.userChoice; } catch (e2) {} deferredInstall = null; b.remove(); };
+            rs.appendChild(b);
+        });
+        window.addEventListener('appinstalled', () => { const b = document.getElementById('installAppBtn'); if (b) b.remove(); });
+
+        // Otomatik gün sonu: açılışta, her 30 sn'de bir ve uygulama öne gelince kontrol edilir
+        runAutoClose();
+        setInterval(runAutoClose, 30000);
+        setInterval(refreshCustomerMenuIfOpen, 30000);
+        document.addEventListener('visibilitychange', () => { if (document.hidden) lockPinSection(); else { runAutoClose(); refreshCustomerMenuIfOpen(); } });
+        renderPinSection();
+
+        function changeTheme(mode) {
+            if(mode === 'light') {
+                document.body.className = "bg-slate-100 text-slate-900 font-sans min-h-screen flex flex-col";
+            } else {
+                document.body.className = "bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col";
+            }
+        }
+    </script>
+</body>
+</html>
