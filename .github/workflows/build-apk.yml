@@ -1,1 +1,77 @@
+name: Build Android APK
 
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Install Dependencies
+      run: |
+        npm install
+
+    - name: Initialize Android Platform
+      run: |
+        npx cap add android || true
+        npx cap sync android
+
+    - name: Add Permissions to AndroidManifest
+      run: |
+        MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+        if ! grep -q "android.permission.CAMERA" "$MANIFEST_PATH"; then
+          sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>' "$MANIFEST_PATH"
+        fi
+
+    - name: Add CepGarson native code, icons and printer permissions
+      run: |
+        APP="android/app/src/main"
+        MANIFEST="$APP/AndroidManifest.xml"
+
+        # 1) Yazıcı eklentisi (Java) + MainActivity
+        JAVA_DIR="$APP/java/com/cepgarson/app"
+        mkdir -p "$JAVA_DIR"
+        cp android-assets/java/*.java "$JAVA_DIR/"
+
+        # 2) Uygulama ikonu (giriş ekranındaki logo ile aynı) ve açılış zemini
+        cp -r android-assets/res/. "$APP/res/"
+        find "$APP/res" -name 'splash.png' -exec cp android-assets/splash.png {} \;
+
+        # 3) Yazıcı izinleri (Bluetooth + ağ)
+        add_perm() {
+          grep -qF "$1" "$MANIFEST" || sed -i "s#</manifest>#    $2\n</manifest>#" "$MANIFEST"
+        }
+        add_perm '"android.permission.ACCESS_NETWORK_STATE"' '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />'
+        add_perm '"android.permission.BLUETOOTH"' '<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />'
+        add_perm '"android.permission.BLUETOOTH_ADMIN"' '<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />'
+        add_perm '"android.permission.BLUETOOTH_CONNECT"' '<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />'
+        echo "--- AndroidManifest.xml ---"; cat "$MANIFEST"
+
+    - name: Build Android APK
+      run: |
+        cd android
+        ./gradlew assembleDebug
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: CepGarson
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        
