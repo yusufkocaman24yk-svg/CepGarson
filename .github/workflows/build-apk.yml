@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,6 +15,11 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+
+    - name: Remove website APK from app bundle
+      run: |
+        # Sitedeki indirme dosyası (www/CepGarson.apk) uygulamanın içine girmesin
+        rm -f www/*.apk
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -69,9 +77,29 @@ jobs:
         cd android
         ./gradlew assembleDebug
 
+    - name: Name the APK CepGarson.apk
+      run: |
+        cp android/app/build/outputs/apk/debug/app-debug.apk CepGarson.apk
+
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: CepGarson
-        path: android/app/build/outputs/apk/debug/app-debug.apk
-        
+        path: CepGarson.apk
+        retention-days: 90
+
+    - name: Publish APK to website (www/CepGarson.apk)
+      if: github.event_name == 'workflow_dispatch'
+      continue-on-error: true
+      run: |
+        cp CepGarson.apk www/CepGarson.apk
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add www/CepGarson.apk
+        if git diff --cached --quiet; then
+          echo "APK değişmedi"
+        else
+          git commit -m "Update CepGarson.apk [skip ci]"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+        fi
